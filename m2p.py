@@ -45,5 +45,46 @@ def listIndexes(args):
 	for item in df.index:
 		print str(item)
 
-#df = load('/mnt/hpc/Dataset_info.mat')
-#print df.loc['Upp2']
+
+def main():
+	import sys, os
+	infile = sys.argv[1]
+	df = load(infile)
+
+	for index in df.index:
+		print index
+
+		thisType = df.loc[index]
+		thisDict = thisType.to_dict()
+
+		thisDict['prm_start'] = [thisDict['pr1_pos'][0],thisDict['pr2_pos'][0]]
+		thisDict['prm_end'] = [thisDict['pr1_pos'][1],thisDict['pr2_pos'][1]]
+		thisDict.pop('pr1_pos')
+		thisDict.pop('pr2_pos')
+
+		thisDict['vp_start'] = [thisDict['vp_pos'][0]]
+		thisDict['vp_end'] = [thisDict['vp_pos'][1]]
+		thisDict.pop('vp_pos')
+
+		thisDict['win_start'] = [thisDict['win_bnd'][0]]
+		thisDict['win_end'] = [thisDict['win_bnd'][1]]
+		thisDict.pop('win_bnd')
+
+		thisDict['pr_seq'] = [thisDict.pop('pr1_seq'),thisDict.pop('pr2_seq')]
+
+		thisDict['re_seq'] = [thisDict.pop('re1_seq'),thisDict.pop('re2_seq')]
+		thisDict['re_name'] = [thisDict.pop('re1_name'),thisDict.pop('re2_name')]
+
+		sortedKeys = thisDict.keys()
+		sortedKeys.sort()
+
+		with open(sys.argv[2]+index, 'w') as f:
+			delim='\t'
+			for key in sortedKeys:
+				value=str(thisDict[key])
+				if type(thisDict[key]) == list:
+					value=delim.join([str(x) for x in thisDict[key]])
+				f.write(str(key) + delim + value + os.linesep)
+
+if __name__ == '__main__':
+	main()
