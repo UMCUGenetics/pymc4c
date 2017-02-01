@@ -87,3 +87,16 @@ ENV/
 
 # Rope project settings
 .ropeproject
+data/
+ant/
+soi/
+tmp
+twoBitToFa
+
+*.mat
+*.tsv
+*.fa
+*.sam
+*.bam
+*.bai
+*.pyc
