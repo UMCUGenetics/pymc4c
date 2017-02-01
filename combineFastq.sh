@@ -1,9 +1,9 @@
 #IDMATCH=elsewhere
-#INFASTAS='./test.fasta ./test.fasta'
-#OUTFASTA=test.fasta.gz
+#INFASTQS='./test.FASTQ ./test.FASTQ'
+#OUTFASTQ=test.FASTQ.gz
 
-INFASTAS=${@:2}
-OUTFASTA=$1.fasta.gz
+INFASTQS=${@:2}
+OUTFASTQ=$1.fastq.gz
 IDMATCH=$1.idmatch
 
 awk \
@@ -12,9 +12,9 @@ awk \
 	!((NR) % 4 == 1) {
 		print}
 	((NR) % 4 == 1)	{
-		READID=">RD:"READNUM";IN:"FILENUM
+		READID="@RD:"READNUM";IN:"FILENUM
 	        print READID
 	        print READID"\tFILE:"FILENAME"\t"$0>IDMATCH;
 	        READNUM += 1}' \
-	                $INFASTAS | \
-	                gzip > $OUTFASTA
+	                $INFASTQS | \
+	                gzip > $OUTFASTQ
