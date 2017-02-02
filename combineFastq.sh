@@ -29,6 +29,6 @@ awk \
 		print $0 > CUROUT }
 	!((NR) % 4 == 1) {
 		print $0 | "gzip >" OUTFASTA".fastq.gz"}
-	END {}' \
+	END { print C }' \
 	                $INFASTQS #> \
 				#$OUTFASTA.fastq.gz
