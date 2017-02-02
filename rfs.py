@@ -19,9 +19,12 @@ def splitStringTo(item,maxLen=50):
 
 # In case of leftover sequence the last bit is attached to the preceeding chunk
 def seqToFasta(sequence,baseId):
-	split = splitStringTo(sequence)
-	if len(split) > 1 and len(split[0]) != len(split[-1]):
-		split[len(split)-2] += split.pop(-1)
+	targetLen = 50
+	split = splitStringTo(sequence,maxLen=targetLen)
+	if len(split) > 1:
+	 	while len(split[0]) != len(split[-1]):
+			popper = split.pop(-1)
+		split[-1] = split[-1][:targetLen/2]+popper
 	outString = ''
 	for i,val in enumerate(split):
 		outString+=fastaIdFormat.format(
