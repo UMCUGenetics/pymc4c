@@ -78,7 +78,7 @@ def main():
 		sortedKeys = thisDict.keys()
 		sortedKeys.sort()
 
-		with open(sys.argv[2]+index, 'w') as f:
+		with open(sys.argv[2]+index+'.tsv', 'w') as f:
 			delim='\t'
 			for key in sortedKeys:
 				value=str(thisDict[key])
