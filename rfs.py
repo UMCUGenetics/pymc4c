@@ -136,6 +136,64 @@ class SimpleRead(object):
 			self.cigar])
 
 # This stuff happens after the botwie part in s06
+def groupPrimers(matchList):
+	# Split by primer type to ensure we only combine primes of the same sort
+	for side in set(x.prmType for x in matchList):
+		thisSide = [x for x in matchList if x.prmType.startswith(side)]
+		if len(thisSide) > 1:
+			# Merge latter listed reads into earlier reads if overlapping
+			for j in xrange(len(thisSide)-1, -1, -1):
+				for i in xrange(j-1, -1, -1):
+					curRead = thisSide[i]
+					nextRead = thisSide[j]
+
+					# Allow a slight offset to consider overlapping to identify
+					# win_i and win_i+2 correctly, and check if both are on the
+					# same strand
+					if curRead.endAln + 10 >= nextRead.startAln \
+							and curRead.startAln <= nextRead.endAln + 10 \
+							and curRead.prmFlag&(1<<4) == nextRead.prmFlag&(1<<4):
+						# Merge information
+						curRead.startAln = min(curRead.startAln,nextRead.startAln)
+						curRead.endAln = max(curRead.endAln,nextRead.endAln)
+						curRead.winInd.extend(nextRead.winInd)
+						curRead.alnErr.extend(nextRead.alnErr)
+						curRead.cigar.extend(nextRead.cigar)
+						# Remove last item in list of merged information parts
+						matchList.remove(nextRead)
+						# Merge further in subsequent loops, not in this one
+						break
+
+	return matchList
+
+
+def findCuts(matchList):
+	# Ensure the list provided is sorted by start positions
+	matchList.sort(key=lambda x: x.startAln)
+	cutList = []
+
+	if matchList == []:
+		return cutList
+
+	# If the first primer points to the start, accept it
+	if matchList[0].prmFlag&(1<<4)==16:
+		cutList.append([0,matchList[0].endAln])
+
+	# Any two subsequent primers pointing toward eachother are accepted,
+	# but ensure they are not the same primer
+	for i in xrange(0,len(matchList)-1):
+		if matchList[i].prmFlag&(1<<4)==0 and \
+				matchList[i+1].prmFlag&(1<<4)==16 and \
+				matchList[i].prmType != matchList[i+1].prmType:
+			cutList.append([matchList[i].startAln,matchList[i+1].endAln])
+		# If we want to remove reads where 2 of the same primer type are
+		# pointing toward eachother we could return an empty list here
+
+	# If the last primer points to the end, accept it
+	if matchList[-1].prmFlag&(1<<4)==0:
+		cutList.append([matchList[-1].startAln,None])
+
+	return cutList
 
 
 def combinePrimers(insam,prmLen,qualThreshold=.20):
@@ -150,87 +208,30 @@ def combinePrimers(insam,prmLen,qualThreshold=.20):
 		#if len(myDict) > 5000:
 		#	break
 
-	#samfile.reset()
 	sortedKeys = myDict.keys()
 	sortedKeys.sort(key=int)
 	simpleList = []
-
-	def checkPrimers(matchList):
-		matchList.sort(key=lambda x: x.startAln)
-		primTypeDict = collections.defaultdict(int)
-		for x in matchList:
-			primTypeDict[x.prmType] += 1 #toList()
-
-		cutList = []
-
-		if matchList == []:
-			return cutList
-
-		#if max(primTypeDict[x] for x in primTypeDict)>1: # Otherwise no problems found
-		print ''
-
-		if matchList[0].prmFlag&(1<<4)==16:
-			print 'Accept: First bit'
-			cutList.append([0,matchList[0].endAln])
-		for i in xrange(0,len(matchList)-1):
-			#print matchList[i].toList()
-			if matchList[i].prmFlag&(1<<4)==0 and \
-				matchList[i+1].prmFlag&(1<<4)==16 and \
-				matchList[i].prmType != matchList[i+1].prmType:
-				print 'Accept:',i,i+1
-				cutList.append([matchList[i].startAln,matchList[i+1].endAln])
-
-		#print matchList[-1].toList()
-		if matchList[-1].prmFlag&(1<<4)==0:
-			print 'Accept: Last bit'
-			cutList.append([matchList[-1].startAln,None])
-
-		for i,x in enumerate(matchList):
-			print i,x.toList()
-
-		for x in cutList:
-			print x
-
-		return cutList
+	cutAllList = []
 
 	for key in sortedKeys:
 		# Remove low quality matches
-		myDict[key] =  [x for x in myDict[key] if (x.alnErr[0] / float(x.endAln-x.startAln) < qualThreshold)]
+		matchedRead = [x for x in myDict[key] if (x.alnErr[0] / float(x.endAln-x.startAln) < qualThreshold)]
 
-		#if len(myDict[key]) < 5:
-		#	continue
-		for side in set(x.prmType for x in myDict[key]):
-			thisSide = [x for x in myDict[key] if x.prmType.startswith(side)]
-			if len(thisSide) > 1:
-				# Merge latter listed reads into earlier reads if overlapping
-				for j in xrange(len(thisSide)-1, -1, -1):
-					for i in xrange(j-1, -1, -1):
-						curRead = thisSide[i]
-						nextRead = thisSide[j]
+		# Group overlapping primers on a read
+		grouped = groupPrimers(matchedRead)
 
-						if curRead.endAln + 10 >= nextRead.startAln \
-								and curRead.startAln <= nextRead.endAln + 10 \
-								and curRead.prmFlag&(1<<4) == nextRead.prmFlag&(1<<4): # Are on same strand
-							#print side,i,j,":",curRead.startAln,curRead.endAln,"---",nextRead.startAln,nextRead.endAln
-							curRead.startAln = min(curRead.startAln,nextRead.startAln)
-							curRead.endAln = max(curRead.endAln,nextRead.endAln) #nextRead.endAln
-							curRead.winInd.extend(nextRead.winInd)
-							curRead.alnErr.extend(nextRead.alnErr)
-							curRead.cigar.extend(nextRead.cigar)
-							myDict[key].remove(nextRead)
-							break
+		# Determine where cuts should be based on mapped primers
+		cutAllList.append([key,findCuts(grouped)])
 
-		checkPrimers(myDict[key])
-
-		for x in myDict[key]:
-			#print x.tostring()
+		for x in grouped:
 			simpleList.append(x.toList())
 
 	pdfColumns = ['prmType','prmFlag','readID',
 		'startAln','endAln','prmSize',
 		'alnErr','winInd','winNum','cigar']
-	#print len(simpleList),len(simpleList[0])
 	pdFrame = pd.DataFrame(simpleList,columns=pdfColumns)
+
+	print cutAllList
 
 	return pdFrame
 
