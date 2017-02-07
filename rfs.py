@@ -12,8 +12,8 @@ import pysam
 import parse
 import collections
 
-fastaIdFormat='>{3};pt{0}/{2}\n{1}\n'
-referenceNameFormat='RD:{};IN:{}'
+fastaIdFormat='>PI:{};WI:{};WN:{}\n{}\n'
+referenceNameFormat='>RD:{};IN:{}'
 
 def splitStringTo(item,maxLen=50):
 	return [str(item[ind:ind+maxLen]) for ind in range(0, len(item), maxLen/2)]
@@ -30,10 +30,11 @@ def seqToFasta(sequence,baseId):
 	outString = ''
 	for i,val in enumerate(split):
 		outString+=fastaIdFormat.format(
+			baseId,
 			i+1,
-			val,
 			len(split),
-			baseId)
+			val
+			)
 	return outString
 
 
@@ -68,38 +69,27 @@ def writePrimerFasta(leftPrimerSeq,rightPrimerSeq,targetFile):
 
 def makePrimerFasta(args):
 	dataInfo = m2p.load(args.infile)
-	#item = df.loc[args.id]
 
 	leftSeq, rightSeq = getPrimerSeqs(dataInfo.loc[args.id])
 	writePrimerFasta(leftSeq, rightSeq, args.output)
-
-	#for item in df.id:
-	#	print 'Working on',item
-		#leftSeq, rightSeq = getPrimerSeqs(df.loc[item])
-
 
 
 # This class can perhaps be replaced by a panda frame later
 class SimpleRead(object):
 	#fastaIdFormat='PR{}_{}-{}'#s06.fastaIdFormat
 	def __init__(self, read, prmLen):
-		# May want to replace this bit in the future: 'PR{}_{}-{}' -> fastaIdFormat
-		#primerType,part,parts=list(parse.parse('PR{}_{}-{}',read.query_name))
-		primerType,part,parts=list(parse.parse('PR{};pt{}/{}',read.query_name))
-		#primerDict = dict(item.split(":") for item in readName[1:].split(";"))['RD'])
+		primerDict = dict(item.split(":") for item in read.query_name.split(";"))
 
-		self.prmType = primerType
+		self.prmType = primerDict['PI'][-1]
 		self.prmFlag = read.flag & ~(1<<8) # Set 9th bit to 0 to state primary alignment
-		#self.readID = parse.parse('SN{}_{}',read.reference_name)[0]
-		self.readID = parse.parse(referenceNameFormat,read.reference_name)[0]
-		#self.readID=int(dict(item.split(":") for item in readName[1:].split(";"))['RD'])
+		self.readID=int(dict(item.split(":") for item in read.reference_name.split(";"))['RD'])
 		self.startAln = read.reference_start
 		self.endAln = read.reference_start + read.infer_query_length(always=True)
-		self.prmSize = prmLen[int(primerType)-1] # Should be length of the original primer?
+		self.prmSize = prmLen[int(self.prmType)-1] # Should be length of the original primer?
 						# prm_len{prm_info(ai,1)}(prm_info(ai,8))
 		self.alnErr = [sum(x[1] for x in read.cigartuples if x[0] in [1,2])]
-		self.winInd = [int(part)]
-		self.winNum = int(parts)
+		self.winInd = [int(primerDict['WI'])]
+		self.winNum = int(primerDict['WN'])
 		self.cigar = [read.cigarstring]
 
 		# Cigar string information
@@ -204,18 +194,14 @@ def findCuts(matchList):
 def combinePrimers(insam,prmLen,qualThreshold=.20):
 	samfile = pysam.AlignmentFile(insam, "rb")
 
-	mySet = set()
+	# Create a dict with lists of SimpleRead using referenceName as key
 	myDict = collections.defaultdict(list)
 	for read in samfile:
-		myDict[int(parse.parse(referenceNameFormat,read.reference_name)[0])].append(SimpleRead(read,prmLen))
+		myDict[int(dict(item.split(":") for item in read.reference_name.split(";"))['RD'])].append(SimpleRead(read,prmLen))
 
-		# Just to speed up testing this implementation:
-		# if len(myDict) > 5000:
-		# 	break
-
+	# Put data in referenceName sorted order
 	sortedKeys = myDict.keys()
 	sortedKeys.sort(key=int)
-	simpleList = []
 	cutAllList = []
 
 	for key in sortedKeys:
@@ -228,19 +214,7 @@ def combinePrimers(insam,prmLen,qualThreshold=.20):
 		# Determine where cuts should be based on mapped primers
 		cutAllList.append([key,findCuts(grouped)])
 
-		# for x in grouped:
-		# 	simpleList.append(x.toList())
-
 	return cutAllList
-
-	# pdfColumns = ['prmType','prmFlag','readID',
-	# 	'startAln','endAln','prmSize',
-	# 	'alnErr','winInd','winNum','cigar']
-	# pdFrame = pd.DataFrame(simpleList,columns=pdfColumns)
-	#
-	# print cutAllList
-	#
-	# return pdFrame
 
 
 def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
@@ -260,9 +234,6 @@ def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 				readName=faFile.next().rstrip()
 				readSeq=faFile.next().rstrip()
 				readId=int(dict(item.split(":") for item in readName[1:].split(";"))['RD'])
-
-				#int(parse.parse('{}RD:{RD};{}',readName)['RD'])
-				#cutIndex+=1
 
 			# Both lists are now either aligned or inFile is ahead
 			if readId == cut[0]:
@@ -299,7 +270,6 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 				thisCut.append([None,matches[0][1]])
 				for i in xrange(len(matches)-1):
 					thisCut.append([matches[i][0],matches[i+1][1]])
-					#print x.start(),x.group()
 				thisCut.append([matches[-1][0],None])
 
 			# Split sequence, dump information
