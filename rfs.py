@@ -19,7 +19,7 @@ def splitStringTo(item,maxLen=50):
 	return [str(item[ind:ind+maxLen]) for ind in range(0, len(item), maxLen/2)]
 
 
-# In case of leftover sequence the last bit is attached to the preceeding chunk
+# In case of leftover sequence the last bit is attached to the preceding chunk
 def seqToFasta(sequence,baseId):
 	targetLen = 50
 	split = splitStringTo(sequence,maxLen=targetLen)
@@ -86,11 +86,13 @@ class SimpleRead(object):
 		# May want to replace this bit in the future: 'PR{}_{}-{}' -> fastaIdFormat
 		#primerType,part,parts=list(parse.parse('PR{}_{}-{}',read.query_name))
 		primerType,part,parts=list(parse.parse('PR{};pt{}/{}',read.query_name))
+		#primerDict = dict(item.split(":") for item in readName[1:].split(";"))['RD'])
 
 		self.prmType = primerType
 		self.prmFlag = read.flag & ~(1<<8) # Set 9th bit to 0 to state primary alignment
 		#self.readID = parse.parse('SN{}_{}',read.reference_name)[0]
 		self.readID = parse.parse(referenceNameFormat,read.reference_name)[0]
+		#self.readID=int(dict(item.split(":") for item in readName[1:].split(";"))['RD'])
 		self.startAln = read.reference_start
 		self.endAln = read.reference_start + read.infer_query_length(always=True)
 		self.prmSize = prmLen[int(primerType)-1] # Should be length of the original primer?
@@ -137,7 +139,7 @@ class SimpleRead(object):
 			self.winNum,
 			self.cigar])
 
-# This stuff happens after the botwie part in s06
+# This stuff happens after the bowtie2 part in s06
 def groupPrimers(matchList):
 	# Split by primer type to ensure we only combine primes of the same sort
 	for side in set(x.prmType for x in matchList):
@@ -241,29 +243,7 @@ def combinePrimers(insam,prmLen,qualThreshold=.20):
 	# return pdFrame
 
 
-def findRestrictionSeq(sequence,restrictionSeqs):
-	compRestSeqs = [str(Seq(x).reverse_complement()) for x in restrictionSeqs]
-	restrictionSeqs.extend(compRestSeqs)
-	reSeqs='|'.join(restrictionSeqs)
-	print reSeqs,sequence
-	matches = [[x.start(), x.end()] for x in (re.finditer(reSeqs, sequence))]
-	cutList = []
-	if matches != []:
-		cutList.append([None,matches[0][1]])
-		for i in xrange(len(matches)-1):
-			cutList.append([matches[i][0],matches[i+1][1]])
-			#print x.start(),x.group()
-		cutList.append([matches[-1][0],None])
-	else:
-		print 'No matches found'
-
-	for cut in cutList:
-		print cut, sequence[cut[0]:cut[1]]
-
-	return cutList
-
-
-def applyCuts(inFile,outFile,cutList,cutDesc='CUT'):
+def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 	readId=-1
 	readName=''
 	readSeq=''
@@ -279,7 +259,9 @@ def applyCuts(inFile,outFile,cutList,cutDesc='CUT'):
 			while cut[0] > readId:
 				readName=faFile.next().rstrip()
 				readSeq=faFile.next().rstrip()
-				readId=int(parse.parse('{}RD:{RD};{}',readName)['RD'])
+				readId=int(dict(item.split(":") for item in readName[1:].split(";"))['RD'])
+
+				#int(parse.parse('{}RD:{RD};{}',readName)['RD'])
 				#cutIndex+=1
 
 			# Both lists are now either aligned or inFile is ahead
@@ -293,34 +275,46 @@ def applyCuts(inFile,outFile,cutList,cutDesc='CUT'):
 
 
 def cleaveReads(args):
-	# sequence='AATCGATTTTCGGGTGACCGT'
-	# restrictionSeqs=['CGAT','TCACCC']
-	# findRestrictionSeq(sequence,restrictionSeqs)
-
-
 	dataInfo = m2p.load(args.info_file)
 	primerLen1 = len(dataInfo['pr1_seq'][args.id])
 	primerLen2 = len(dataInfo['pr2_seq'][args.id])
-	#print [primerLen1,primerLen2]
 	prmCuts = combinePrimers(args.rfs_file,[primerLen1,primerLen2])
-
-	applyCuts(args.infasta,args.outfasta,prmCuts,cutDesc='PC')
-	#for x in prmCuts:
-	#	print x
+	applyCuts(args.infasta,args.outfasta,prmCuts)
 
 
-	exit()
-	print prmInfo
-	#print prmInfo['prmType']
-	# TODO: This appears to be a switch that should be an argument upon calling the script
-	if dataInfo['seq_plt'][args.id] == 'PacBio':
-		lowQualIndex = prmInfo['alnErr']/prmInfo['prmSize'] > 0.15
-	elif dataInfo['seq_plt'][args.id] == 'NanoPore':
-		lowQualIndex = prmInfo['alnErr']/prmInfo['prmSize'] > 0.20
-	else:
-		print 'Unknown platform:',dataInfo['seq_plt'][args.id]
-		exit(1)
+def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
+	compRestSeqs = [str(Seq(x).reverse_complement()) for x in restSeqs]
+	restSeqs.extend(compRestSeqs)
+	reSeqs='|'.join(restSeqs)
+	cutList = []
 
-	print lowQualIndex
-	#print len(lowQualIndex),sum(lowQualIndex)
-	#print prmInfo
+	with open(inFile,'r') as faFile, open(outFile,'w') as dumpFile:
+		for read in faFile:
+			readName=read.rstrip() #faFile.next().rstrip()
+			readSeq=faFile.next().rstrip()
+
+			matches = [[x.start(), x.end()] for x in (re.finditer(reSeqs, readSeq))]
+			thisCut = []
+			if matches != []:
+				thisCut.append([None,matches[0][1]])
+				for i in xrange(len(matches)-1):
+					thisCut.append([matches[i][0],matches[i+1][1]])
+					#print x.start(),x.group()
+				thisCut.append([matches[-1][0],None])
+
+			# Split sequence, dump information
+			for i,x in enumerate(thisCut):
+				# Extend the identifier
+				dumpFile.write(readName+';'+cutDesc+':'+str(i)+'\n')#+':'+str(x[0])+'-'+str(x[1])
+				# Dump the actual sub sequence
+				dumpFile.write(readSeq[x[0]:x[1]]+'\n')
+
+			cutList.append([readName,thisCut])
+	return cutList
+
+
+def splitReads(args):
+	dataInfo = m2p.load(args.info_file)
+ 	restSeqs = [dataInfo['re1_seq'][args.id],dataInfo['re2_seq'][args.id]]
+	# TODO: Substitute reference genome with reads (?)
+	findRestrictionSeqs(args.infasta,args.outfasta,restSeqs)
