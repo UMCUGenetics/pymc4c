@@ -7,6 +7,7 @@ from Bio.Seq import Seq
 import numpy as np
 import pandas as pd
 
+import re
 import pysam
 import parse
 import collections
@@ -99,6 +100,7 @@ class SimpleRead(object):
 		self.winNum = int(parts)
 		self.cigar = [read.cigarstring]
 
+		# Cigar string information
 		# M 	BAM_CMATCH 		0
 		# I 	BAM_CINS 		1
 		# D 	BAM_CDEL 		2
@@ -177,7 +179,7 @@ def findCuts(matchList):
 
 	# If the first primer points to the start, accept it
 	if matchList[0].prmFlag&(1<<4)==16:
-		cutList.append([0,matchList[0].endAln])
+		cutList.append([None,matchList[0].endAln])
 
 	# Any two subsequent primers pointing toward eachother are accepted,
 	# but ensure they are not the same primer
@@ -186,6 +188,7 @@ def findCuts(matchList):
 				matchList[i+1].prmFlag&(1<<4)==16 and \
 				matchList[i].prmType != matchList[i+1].prmType:
 			cutList.append([matchList[i].startAln,matchList[i+1].endAln])
+		# TODO: Check if we need to add +1 to the end position above
 		# If we want to remove reads where 2 of the same primer type are
 		# pointing toward eachother we could return an empty list here
 
@@ -202,11 +205,11 @@ def combinePrimers(insam,prmLen,qualThreshold=.20):
 	mySet = set()
 	myDict = collections.defaultdict(list)
 	for read in samfile:
-		myDict[parse.parse(referenceNameFormat,read.reference_name)[0]].append(SimpleRead(read,prmLen))
+		myDict[int(parse.parse(referenceNameFormat,read.reference_name)[0])].append(SimpleRead(read,prmLen))
 
 		# Just to speed up testing this implementation:
-		#if len(myDict) > 5000:
-		#	break
+		# if len(myDict) > 5000:
+		# 	break
 
 	sortedKeys = myDict.keys()
 	sortedKeys.sort(key=int)
@@ -223,25 +226,89 @@ def combinePrimers(insam,prmLen,qualThreshold=.20):
 		# Determine where cuts should be based on mapped primers
 		cutAllList.append([key,findCuts(grouped)])
 
-		for x in grouped:
-			simpleList.append(x.toList())
+		# for x in grouped:
+		# 	simpleList.append(x.toList())
 
-	pdfColumns = ['prmType','prmFlag','readID',
-		'startAln','endAln','prmSize',
-		'alnErr','winInd','winNum','cigar']
-	pdFrame = pd.DataFrame(simpleList,columns=pdfColumns)
+	return cutAllList
 
-	print cutAllList
+	# pdfColumns = ['prmType','prmFlag','readID',
+	# 	'startAln','endAln','prmSize',
+	# 	'alnErr','winInd','winNum','cigar']
+	# pdFrame = pd.DataFrame(simpleList,columns=pdfColumns)
+	#
+	# print cutAllList
+	#
+	# return pdFrame
 
-	return pdFrame
+
+def findRestrictionSeq(sequence,restrictionSeqs):
+	compRestSeqs = [str(Seq(x).reverse_complement()) for x in restrictionSeqs]
+	restrictionSeqs.extend(compRestSeqs)
+	reSeqs='|'.join(restrictionSeqs)
+	print reSeqs,sequence
+	matches = [[x.start(), x.end()] for x in (re.finditer(reSeqs, sequence))]
+	cutList = []
+	if matches != []:
+		cutList.append([None,matches[0][1]])
+		for i in xrange(len(matches)-1):
+			cutList.append([matches[i][0],matches[i+1][1]])
+			#print x.start(),x.group()
+		cutList.append([matches[-1][0],None])
+	else:
+		print 'No matches found'
+
+	for cut in cutList:
+		print cut, sequence[cut[0]:cut[1]]
+
+	return cutList
+
+
+def applyCuts(inFile,outFile,cutList,cutDesc='CUT'):
+	readId=-1
+	readName=''
+	readSeq=''
+	with open(inFile,'r') as faFile, open(outFile,'w') as dumpFile:
+		# Indexing is lead by cutlist, contains less than or equal to inFile
+		for cut in cutList:
+			# No cuts can be made, ignore this sequence
+			if cut[1] == []:
+				continue
+
+			# Assuming both lists are sorted by read id (int),
+		 	# play catchup between the two lists
+			while cut[0] > readId:
+				readName=faFile.next().rstrip()
+				readSeq=faFile.next().rstrip()
+				readId=int(parse.parse('{}RD:{RD};{}',readName)['RD'])
+				#cutIndex+=1
+
+			# Both lists are now either aligned or inFile is ahead
+			if readId == cut[0]:
+				# Split sequence, dump information
+				for i,x in enumerate(cut[1]):
+					# Extend the identifier
+					dumpFile.write(readName+';'+cutDesc+':'+str(i)+'\n')#+':'+str(x[0])+'-'+str(x[1])
+					# Dump the actual sub sequence
+					dumpFile.write(readSeq[x[0]:x[1]]+'\n')
 
 
 def cleaveReads(args):
+	# sequence='AATCGATTTTCGGGTGACCGT'
+	# restrictionSeqs=['CGAT','TCACCC']
+	# findRestrictionSeq(sequence,restrictionSeqs)
+
+
 	dataInfo = m2p.load(args.info_file)
 	primerLen1 = len(dataInfo['pr1_seq'][args.id])
 	primerLen2 = len(dataInfo['pr2_seq'][args.id])
-	print [primerLen1,primerLen2]
-	prmInfo = combinePrimers(args.rfs_file,[primerLen1,primerLen2])
+	#print [primerLen1,primerLen2]
+	prmCuts = combinePrimers(args.rfs_file,[primerLen1,primerLen2])
+
+	applyCuts(args.infasta,args.outfasta,prmCuts,cutDesc='PC')
+	#for x in prmCuts:
+	#	print x
+
+
 	exit()
 	print prmInfo
 	#print prmInfo['prmType']

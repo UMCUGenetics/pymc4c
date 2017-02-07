@@ -57,9 +57,12 @@ def main():
 	parser_rfs02.add_argument('rfs_file',
 		type=str,
 		help='Bam file after makeprimerfa results were mapped by bowtie2, then sorted and indexed using samtools')
-	parser_rfs02.add_argument('cmb_file',
+	parser_rfs02.add_argument('infasta',
 		type=str,
-		help='Fasta file containing actual data from sequencing')
+		help='Fasta file containing actual data from sequencing') # cmb_file
+	parser_rfs02.add_argument('outfasta',
+		type=str,
+		help='Fasta file to dump cleaved sequences into')
 	parser_rfs02.add_argument('id',
 		type=str, default=None,
 		help='Id of the primer used, matching id column in infile') # This id should be removed at some point later on...
