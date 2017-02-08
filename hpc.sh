@@ -1,44 +1,60 @@
 set -e
 
+export EXPNAME='LVR-HS2-NP2'
+export FILE_FASTQ='/hpc/cog_bioinf/data/aallahyar/My_Works/4C_PacBio/60_Using_Default_Mapping_Parameter/NPS_Files/NPS_LVR-HS2-NP2_--000007--_Best.fastq'
+export FILE_REF='/hpc/cog_bioinf/data/aallahyar/Dataset/Genome_Assembly/Human/hg19/chrAll.fa'
+
+
 export DIR_TOOL="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export MC4CTOOL=$DIR_TOOL/mc4c.py
 
-export PYTHON=python
-export MAIN=mc4c.py
-export BOWTIE=bowtie2
-export DIR_DATA=./data
-export DIR_IN=$DIR_DATA/in
-export DIR_RFS=$DIR_DATA/rfs
-export DIR_CMB=$DIR_DATA/cmb
+export BOWTIE=/hpc/cog_bioinf/data/aallahyar/My_Works/Useful_Sample_Codes/Bowtie2/bowtie2-2.2.6/bowtie2
+export BWA=/hpc/cog_bioinf/data/aallahyar/My_Works/Useful_Sample_Codes/BWA/bwa/bwa
+
+# Directories for input/output
+export DIR_DATA=$DIR_TOOL/data
 export DIR_LOG=$DIR_DATA/log
-export FILE_DATAINFO=./Dataset_info.mat
+export DIR_NODES=$DIR_TOOL/hpc
 
-export MAX_CPU=4
+# File naming for job input.ouput
+export FILE_OUT=$DIR_DATA/$EXPNAME
+export FILE_PRIMERFA=$DIR_TOOL/data/primer_${EXPNAME}.fa
+export FILE_DATAINFO=$DIR_TOOL/local/Dataset_info.mat
 
+# Setup for submission variables
 QSUBVARS="-V -e $DIR_LOG -o $DIR_LOG"
+HOLD_ID=-1
 
-#LIST_INDEXES=`$PYTHON mc4c.py listindex $FILE_DATAINFO`
-
-mkdir -p $DIR_RFS $DIR_CMB $DIR_LOG
-
+# Load necessary modules for analyses
 module load python
 
-# Split fastq data over several even sized files - Single
-# Rename read names to unique numbers
-echo qsub $QSUBVARS splitFastq_hpc.sh
+# Local: Make the primer fa
+python $MC4CTOOL makeprimerfa $FILE_DATAINFO $FILE_PRIMERFA $EXPNAME
 
-# Map primers to reads - Array
-echo qsub $QSUBVARS bowtie_hpc_array.sh
+# Local: Determine amount of reads in the original fastq file
+FASTQWCL=`wc -l $FILE_FASTQ | tail -n 1 |  awk '{print $1}'`
+READSPERFILE=16384
+export LINESPERFILE=$(($READSPERFILE*4))
+SPLITFILESNUM=$((($FASTQWCL+$LINESPERFILE-1)/$LINESPERFILE))
 
-# Split reads by primers - Array
-echo qsub $QSUBVARS cleavereads.sh
-#python mc4c.py cleavereads ./local/Dataset_info.mat ./local/splitbowq_NPC-PCDHa11-NP_32.sam ./local/splitbowq_NPC-PCDHa11-NP_32.fq ./local/splitbowq_NPC-PCDHa11-NP_32.prcleave.fq NPC-PCDHa11-NP
+#echo $(($FASTQWCL/4)) Reads found in $FILE_FASTQ
+#echo Becomes $SPLITFILESNUM files
 
-# Split reads by restriction sites - Array
-echo qsub $QSUBVARS splitreads.sh
-#python mc4c.py splitreads ./local/Dataset_info.mat ./local/splitbowq_NPC-PCDHa11-NP_32.prcleave.fq ./local/splitbowq_NPC-PCDHa11-NP_32.split.fq NPC-PCDHa11-NP
+# Single: Split fastq data over several even sized files,
+# 	rename reads to unique numbers
+HOLD_ID=`qsub $QSUBVARS $DIR_NODES/splitfq.sh | awk '{print $3}'`
 
-# Merge split reads - Single
-echo qsub $QSUBVARS "Merge step"
+# Array: Map primers to reads
+HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID -t 1:$SPLITFILESNUM $DIR_NODES/bowtie.sh | awk '{print $3}' | cut -f1 -d.`
 
-# Map split reads to reference genome - Single
-echo qsub $QSUBVARS "Map step"
+# Array: Split reads by primers
+HOLD_ID=`qsub $QSUBVARS -hold_jid_ad $HOLD_ID -t 1:$SPLITFILESNUM $DIR_NODES/splitpr.sh | awk '{print $3}' | cut -f1 -d.`
+
+# Array: Split reads by restriction sites
+HOLD_ID=`qsub $QSUBVARS -hold_jid_ad $HOLD_ID -t 1:$SPLITFILESNUM $DIR_NODES/splitre.sh | awk '{print $3}' | cut -f1 -d.`
+
+# Single: Merge split reads
+HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID $DIR_NODES/mergere.sh | awk '{print $3}'`
+
+# Single: Map split reads to reference genome
+HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID $DIR_NODES/bwa.sh | awk '{print $3}'`
