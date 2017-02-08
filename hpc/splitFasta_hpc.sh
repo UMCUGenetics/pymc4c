@@ -17,7 +17,7 @@ EXPNAME='NPC-PCDHa11-NP'
 OUTFASTA=$BASEDIR/data/splitbow_${EXPNAME}
 
 #TARGETFA=./data/${EXPNAME}.fa
-INFASTQS=/hpc/cog_bioinf/data/aallahyar/My_Works/4C_PacBio/62_Running_ThePipeline_ForAllExperiments/CMB_Files/CMB_NPC-PCDHa11-NP.fasta
+INFASTAS=/hpc/cog_bioinf/data/aallahyar/My_Works/4C_PacBio/62_Running_ThePipeline_ForAllExperiments/CMB_Files/CMB_NPC-PCDHa11-NP.fasta
 #head $INFASTQS > $OUTFASTA.mini.fa
 #INFASTQS=$OUTFASTA.mini.fa
 #IDMATCH=elsewhere
@@ -48,5 +48,5 @@ awk \
 	((NR) % 2 == 0) {
 		print $0 > CUROUT }
 	END { print C }' \
-	                $INFASTQS #> \
+	                $INFASTAS #> \
 				#$OUTFASTA.fastq.gz

@@ -221,7 +221,7 @@ def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 	readId=-1
 	readName=''
 	readSeq=''
-	with open(inFile,'r') as faFile, open(outFile,'w') as dumpFile:
+	with open(inFile,'r') as fqFile, open(outFile,'w') as dumpFile:
 		# Indexing is lead by cutlist, contains less than or equal to inFile
 		for cut in cutList:
 			# No cuts can be made, ignore this sequence
@@ -231,8 +231,10 @@ def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 			# Assuming both lists are sorted by read id (int),
 		 	# play catchup between the two lists
 			while cut[0] > readId:
-				readName=faFile.next().rstrip()
-				readSeq=faFile.next().rstrip()
+				readName=fqFile.next().rstrip()
+				readSeq=fqFile.next().rstrip()
+				readPlus=fqFile.next().rstrip()
+				readPhred=fqFile.next().rstrip()
 				readId=int(dict(item.split(":") for item in readName[1:].split(";"))['RD'])
 
 			# Both lists are now either aligned or inFile is ahead
@@ -243,6 +245,8 @@ def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 					dumpFile.write(readName+';'+cutDesc+':'+str(i)+'\n')#+':'+str(x[0])+'-'+str(x[1])
 					# Dump the actual sub sequence
 					dumpFile.write(readSeq[x[0]:x[1]]+'\n')
+					dumpFile.write(readPlus+'\n')
+					dumpFile.write(readPhred[x[0]:x[1]]+'\n')
 
 
 def cleaveReads(args):
@@ -259,17 +263,19 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 	reSeqs='|'.join(restSeqs)
 	cutList = []
 
-	with open(inFile,'r') as faFile, open(outFile,'w') as dumpFile:
-		for read in faFile:
+	with open(inFile,'r') as fqFile, open(outFile,'w') as dumpFile:
+		for read in fqFile:
 			readName=read.rstrip() #faFile.next().rstrip()
-			readSeq=faFile.next().rstrip()
+			readSeq=fqFile.next().rstrip()
+			readPlus=fqFile.next().rstrip()
+			readPhred=fqFile.next().rstrip()
 
 			matches = [[x.start(), x.end()] for x in (re.finditer(reSeqs, readSeq))]
 			thisCut = []
 			if matches != []:
-				thisCut.append([None,matches[0][1]])
+				thisCut.append([None,matches[0][0]])
 				for i in xrange(len(matches)-1):
-					thisCut.append([matches[i][0],matches[i+1][1]])
+					thisCut.append([matches[i][0],matches[i+1][0]])
 				thisCut.append([matches[-1][0],None])
 
 			# Split sequence, dump information
@@ -278,6 +284,8 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 				dumpFile.write(readName+';'+cutDesc+':'+str(i)+'\n')#+':'+str(x[0])+'-'+str(x[1])
 				# Dump the actual sub sequence
 				dumpFile.write(readSeq[x[0]:x[1]]+'\n')
+				dumpFile.write(readPlus+'\n')
+				dumpFile.write(readPhred[x[0]:x[1]]+'\n')
 
 			cutList.append([readName,thisCut])
 	return cutList

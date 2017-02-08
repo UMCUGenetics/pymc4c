@@ -29,7 +29,10 @@ $BOWTIE --local -D 20 -R 3 -N 0 -L 15 -i S,1,0.50 \
 	--rdg 2,1 \
 	--rfg 2,1 \
 	--mp 3,2 \
-	--ma 2 -a -p 2 -f \
+	--ma 2 \
+	-a \
+	-p 2 \
+	-f \
 	-x $TARGETBT \
 	-U $PRIMERFA \
 	-S $TARGETSAM
