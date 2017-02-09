@@ -6,5 +6,4 @@ python $MC4CTOOL \
 	$FILE_DATAINFO \
 	${FILE_OUT}_$SGE_TASK_ID.sam \
 	${FILE_OUT}_$SGE_TASK_ID.fq \
-	${FILE_OUT}_$SGE_TASK_ID.splitpr.fq \
-	$EXPNAME
+	${FILE_OUT}_$SGE_TASK_ID.splitpr.fq

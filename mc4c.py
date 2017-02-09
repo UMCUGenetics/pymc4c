@@ -9,80 +9,53 @@ import rfs
 import m2p
 
 def main():
+	descIniFile = 'File containing experiment specific details'
+	descFqFile = 'Fastq file containing actual data from sequencing'
+
 	parser = argparse.ArgumentParser(
 		description="TODO: Replace this description")
 	subparsers = parser.add_subparsers()
 
-	parser_listIndex = subparsers.add_parser('listindex',
-		description='Provide a list of all indexes in the matlab file')
-	parser_listIndex.add_argument('infile',
-		type=str,
-		help='Matlab data object file')
-	parser_listIndex.set_defaults(func=m2p.listIndexes)
-
-	# File conversion
-	parser_s01 = subparsers.add_parser('s01',
-		description='S01 Preprocessing Data Information')
-	parser_s01.add_argument('infile',
-		type=str,
-		help='Tab separated value file for conversion')
-	parser_s01.add_argument('-soibeds',
-		type=str, nargs='*',
-		help='Bed files containing ...')
-	parser_s01.add_argument('-antbeds',
-		type=str, nargs='*',
-		help='Bed files containing annotations ...')
-	parser_s01.set_defaults(func=prep.prepareMeta)
-
 	#
 	parser_rfs01 = subparsers.add_parser('makeprimerfa',
 		description='rfs Align Primers')
-	parser_rfs01.add_argument('infile', # data_info
+	parser_rfs01.add_argument('inifile', # data_info
 		type=str,
-		help='Matlab data object file')
-	parser_rfs01.add_argument('output', # rfs_prm
+		help=descIniFile)
+	parser_rfs01.add_argument('outfile', # rfs_prm
 		type=str,
 		help='Fasta file with primer sequences')
-	parser_rfs01.add_argument('id',
-		type=str, default=None,
-		help='Id of the primer used, matching id column in infile')
 	parser_rfs01.set_defaults(func=rfs.makePrimerFasta)
 
 	#
 	parser_rfs02 = subparsers.add_parser('cleavereads',
-		description='Cleaving reads')
-	parser_rfs02.add_argument('info_file', # data_info
+		description='Cleave reads by primer sequences')
+	parser_rfs02.add_argument('inifile', # data_info
 		type=str,
-		help='Matlab data object file')
-	parser_rfs02.add_argument('rfs_file',
+		help=descIniFile)
+	parser_rfs02.add_argument('bamfile',
 		type=str,
-		help='Bam file after makeprimerfa results were mapped by bowtie2, then sorted and indexed using samtools')
-	parser_rfs02.add_argument('infasta',
+		help='Bam file after makeprimerfa results were mapped by bowtie2') # then sorted and indexed using samtools'?
+	parser_rfs02.add_argument('fastqfile',
 		type=str,
-		help='Fasta file containing actual data from sequencing') # cmb_file
-	parser_rfs02.add_argument('outfasta',
+		help=descFqFile) # cmb_file
+	parser_rfs02.add_argument('outfile',
 		type=str,
-		help='Fasta file to dump cleaved sequences into')
-	parser_rfs02.add_argument('id',
-		type=str, default=None,
-		help='Id of the primer used, matching id column in infile') # This id should be removed at some point later on...
+		help='Fastq file to dump primer cleaved sequences into')
 	parser_rfs02.set_defaults(func=rfs.cleaveReads)
 
 	#
 	parser_gen = subparsers.add_parser('splitreads',
-		description='Cleaving reads')
-	parser_gen.add_argument('info_file', # data_info
+		description='Split reads by restriction site sequences')
+	parser_gen.add_argument('inifile', # data_info
 		type=str,
-		help='Matlab data object file')
-	parser_gen.add_argument('infasta',
+		help=descIniFile)
+	parser_gen.add_argument('fastqfile',
 		type=str,
-		help='Fasta file containing actual data from sequencing') # cmb_file
-	parser_gen.add_argument('outfasta',
+		help=descFqFile) # cmb_file
+	parser_gen.add_argument('outfile',
 		type=str,
-		help='Fasta file to dump split sequences into')
-	parser_gen.add_argument('id',
-		type=str, default=None,
-		help='Id of the primer used, matching id column in infile') # This id should be removed at some point later on...
+		help='Fasta file to dump restriction site split sequences into')
 	parser_gen.set_defaults(func=rfs.splitReads)
 
 

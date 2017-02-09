@@ -15,6 +15,34 @@ import collections
 fastaIdFormat='>PI:{};WI:{};WN:{}\n{}\n'
 referenceNameFormat='>RD:{};IN:{}'
 
+def loadIni(iniFile):
+	# Read data from file, stuff it into a dict
+	settings=dict()
+	with open(iniFile,'r') as iniFile:
+		for line in iniFile:
+			splitLine = line.split()
+			settings[splitLine[0]] = [x for x in splitLine[1:] if x != '']
+
+	# Integer lists
+	for key in ['prm_start','prm_end','vp_start','vp_end','win_start','win_end']:
+		settings[key]=[int(x) for x in settings[key]]
+
+	# Temporary solution to error in naming
+	settings['prm_seq'] = settings['pr_seq']
+
+	# Check lists that should be of equal length
+	linked=[
+			['prm_seq','prm_start','prm_end'],
+			['re_name','re_seq'],
+			['win_start','win_end'],
+			['vp_name','vp_chr','vp_start','vp_end']
+		]
+	for listed in linked:
+		assert len(set([len(settings[x]) for x in listed])) == 1, 'Error: different lengths for linked data:'+','.join(str(x) for x in listed)
+
+	return settings
+
+
 def splitStringTo(item,maxLen=50):
 	return [str(item[ind:ind+maxLen]) for ind in range(0, len(item), maxLen/2)]
 
@@ -30,48 +58,54 @@ def seqToFasta(sequence,baseId):
 	outString = ''
 	for i,val in enumerate(split):
 		outString+=fastaIdFormat.format(
-			baseId,
-			i+1,
-			len(split),
-			val
-			)
+			baseId, i+1, len(split),
+			val)
 	return outString
 
 
 # TODO: Improve error message on faulty primes sequences
 def getPrimerSeqs(dataInfo):
-	leftSeq = prep.getFastaSequence(
-			dataInfo.genome_build,
-			dataInfo.vp_chr,
-			dataInfo.pr1_pos[0]-300,
-			dataInfo.pr1_pos[1]).upper()
-	leftIndex = leftSeq.rfind(dataInfo.re1_seq)
-	leftPrimerSeq = Seq(leftSeq[leftIndex:]).reverse_complement()
-	assert leftPrimerSeq.find(dataInfo.pr1_seq) >= 0, 'Primer sequence is wrong\n'+str(dataInfo)
+	primerSeqs = []
+	for i, val in enumerate(dataInfo['prm_seq']):
+		leftSeq = prep.getFastaSequence(
+				dataInfo['genome_build'][0],
+				dataInfo['vp_chr'][0],
+				dataInfo['prm_start'][i]-300,
+				dataInfo['prm_end'][i]).upper()
+		leftIndex = leftSeq.rfind(dataInfo['re_seq'][0])
+		leftPrimerSeq = Seq(leftSeq[leftIndex:]).reverse_complement()
 
-	rightSeq = prep.getFastaSequence(
-			dataInfo.genome_build,
-			dataInfo.vp_chr,
-			dataInfo.pr2_pos[0]-1,
-			dataInfo.pr2_pos[1]+300).upper()
-	rightIndex = rightSeq.find(dataInfo.re1_seq) + len(dataInfo.re1_seq) - 1
-	rightPrimerSeq = rightSeq[:rightIndex];
-	assert rightPrimerSeq.find(dataInfo.pr2_seq) >= 0, 'Primer sequence is wrong\n'+str(dataInfo)
+		rightSeq = prep.getFastaSequence(
+				dataInfo['genome_build'][0],
+				dataInfo['vp_chr'][0],
+				dataInfo['prm_start'][i]-1,
+				dataInfo['prm_end'][i]+300).upper()
+		rightIndex = rightSeq.find(dataInfo['re_seq'][0]) + len(dataInfo['re_seq'][0]) - 1
+		rightPrimerSeq = rightSeq[:rightIndex]
 
-	return leftPrimerSeq,rightPrimerSeq
+		assert max(leftPrimerSeq.find(dataInfo['prm_seq'][i]),
+			rightPrimerSeq.find(dataInfo['prm_seq'][i])) >= 0, 'Primer sequence is wrong\n'+str(dataInfo['prm_seq'][i])
+		assert min(leftPrimerSeq.find(dataInfo['prm_seq'][i]),
+			rightPrimerSeq.find(dataInfo['prm_seq'][i])) <= 0, 'Primer sequence is ambigious\n'+str(dataInfo['prm_seq'][i])
+
+		if rightPrimerSeq.find(dataInfo['prm_seq'][i]) >= 0:
+			primerSeqs.append(rightPrimerSeq)
+		else:
+			primerSeqs.append(leftPrimerSeq)
+
+	return primerSeqs
 
 
-def writePrimerFasta(leftPrimerSeq,rightPrimerSeq,targetFile):
+def writePrimerFasta(primerSeqs,targetFile):
 	with open(targetFile,'w') as outFasta:
-		outFasta.write(seqToFasta(leftPrimerSeq,'PR1'))
-		outFasta.write(seqToFasta(rightPrimerSeq,'PR2'))
+		for i,seq in enumerate(primerSeqs):
+			outFasta.write(seqToFasta(seq,str(i+1)))
 
 
 def makePrimerFasta(args):
-	dataInfo = m2p.load(args.infile)
-
-	leftSeq, rightSeq = getPrimerSeqs(dataInfo.loc[args.id])
-	writePrimerFasta(leftSeq, rightSeq, args.output)
+	settings = loadIni(args.inifile)
+	primerSeqs = getPrimerSeqs(settings)
+	writePrimerFasta(primerSeqs, args.outfile)
 
 
 # This class can perhaps be replaced by a panda frame later
@@ -250,11 +284,10 @@ def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 
 
 def cleaveReads(args):
-	dataInfo = m2p.load(args.info_file)
-	primerLen1 = len(dataInfo['pr1_seq'][args.id])
-	primerLen2 = len(dataInfo['pr2_seq'][args.id])
-	prmCuts = combinePrimers(args.rfs_file,[primerLen1,primerLen2])
-	applyCuts(args.infasta,args.outfasta,prmCuts)
+	settings = loadIni(args.inifile)
+	primerLens = [len(x) for x in settings['prm_seq']]
+	prmCuts = combinePrimers(args.bamfile,primerLens)
+	applyCuts(args.fastqfile,args.outfile,prmCuts)
 
 
 def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
@@ -292,7 +325,7 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 
 
 def splitReads(args):
-	dataInfo = m2p.load(args.info_file)
- 	restSeqs = [dataInfo['re1_seq'][args.id],dataInfo['re2_seq'][args.id]]
+	settings = loadIni(args.inifile)
+	restSeqs = settings['re_seq']
 	# TODO: Substitute reference genome with reads (?)
-	findRestrictionSeqs(args.infasta,args.outfasta,restSeqs)
+	findRestrictionSeqs(args.fastqfile,args.outfile,restSeqs)

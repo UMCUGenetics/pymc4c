@@ -5,5 +5,4 @@ python $MC4CTOOL \
 	splitreads \
 	$FILE_DATAINFO \
 	${FILE_OUT}_$SGE_TASK_ID.splitpr.fq \
-	${FILE_OUT}_$SGE_TASK_ID.splitre.fq \
-	$EXPNAME
+	${FILE_OUT}_$SGE_TASK_ID.splitre.fq

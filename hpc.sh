@@ -21,7 +21,7 @@ export DIR_NODES=$DIR_TOOL/hpc
 # File naming for job input.ouput
 export FILE_OUT=$DIR_DATA/$EXPNAME
 export FILE_PRIMERFA=$DIR_TOOL/data/primer_${EXPNAME}.fa
-export FILE_DATAINFO=$DIR_TOOL/local/Dataset_info.mat
+export FILE_DATAINFO=$DIR_DATA/ini/${EXPNAME}.tsv
 
 # Setup for submission variables
 QSUBVARS="-V -e $DIR_LOG -o $DIR_LOG"
@@ -31,7 +31,7 @@ HOLD_ID=-1
 module load python
 
 # Local: Make the primer fa
-python $MC4CTOOL makeprimerfa $FILE_DATAINFO $FILE_PRIMERFA $EXPNAME
+python $MC4CTOOL makeprimerfa $FILE_DATAINFO $FILE_PRIMERFA
 
 # Local: Determine amount of reads in the original fastq file
 FASTQWCL=`wc -l $FILE_FASTQ | tail -n 1 |  awk '{print $1}'`
