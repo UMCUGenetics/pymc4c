@@ -5,8 +5,7 @@ import os
 import log
 import prep
 
-import rfs
-import m2p
+import mc4ctools
 
 def main():
 	descIniFile = 'File containing experiment specific details'
@@ -17,46 +16,46 @@ def main():
 	subparsers = parser.add_subparsers()
 
 	#
-	parser_rfs01 = subparsers.add_parser('makeprimerfa',
-		description='rfs Align Primers')
-	parser_rfs01.add_argument('inifile', # data_info
+	parser_mkprfa = subparsers.add_parser('makeprimerfa',
+		description='Make a fasta file of primer sequences')
+	parser_mkprfa.add_argument('inifile',
 		type=str,
 		help=descIniFile)
-	parser_rfs01.add_argument('outfile', # rfs_prm
+	parser_mkprfa.add_argument('outfile',
 		type=str,
 		help='Fasta file with primer sequences')
-	parser_rfs01.set_defaults(func=rfs.makePrimerFasta)
+	parser_mkprfa.set_defaults(func=mc4ctools.makePrimerFasta)
 
 	#
-	parser_rfs02 = subparsers.add_parser('cleavereads',
+	parser_clvprm = subparsers.add_parser('cleavereads',
 		description='Cleave reads by primer sequences')
-	parser_rfs02.add_argument('inifile', # data_info
+	parser_clvprm.add_argument('inifile',
 		type=str,
 		help=descIniFile)
-	parser_rfs02.add_argument('bamfile',
+	parser_clvprm.add_argument('bamfile',
 		type=str,
 		help='Bam file after makeprimerfa results were mapped by bowtie2') # then sorted and indexed using samtools'?
-	parser_rfs02.add_argument('fastqfile',
+	parser_clvprm.add_argument('fastqfile',
 		type=str,
-		help=descFqFile) # cmb_file
-	parser_rfs02.add_argument('outfile',
+		help=descFqFile)
+	parser_clvprm.add_argument('outfile',
 		type=str,
 		help='Fastq file to dump primer cleaved sequences into')
-	parser_rfs02.set_defaults(func=rfs.cleaveReads)
+	parser_clvprm.set_defaults(func=mc4ctools.cleaveReads)
 
 	#
-	parser_gen = subparsers.add_parser('splitreads',
+	parser_splrest = subparsers.add_parser('splitreads',
 		description='Split reads by restriction site sequences')
-	parser_gen.add_argument('inifile', # data_info
+	parser_splrest.add_argument('inifile',
 		type=str,
 		help=descIniFile)
-	parser_gen.add_argument('fastqfile',
+	parser_splrest.add_argument('fastqfile',
 		type=str,
-		help=descFqFile) # cmb_file
-	parser_gen.add_argument('outfile',
+		help=descFqFile)
+	parser_splrest.add_argument('outfile',
 		type=str,
 		help='Fasta file to dump restriction site split sequences into')
-	parser_gen.set_defaults(func=rfs.splitReads)
+	parser_splrest.set_defaults(func=mc4ctools.splitReads)
 
 
 	args = parser.parse_args(sys.argv[1:])
