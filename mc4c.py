@@ -5,8 +5,30 @@ import os
 import log
 import prep
 
-import mc4ctools
+import mc4ctools as mc
 
+
+def makePrimerFasta(args):
+	settings = mc.loadIni(args.inifile)
+	primerSeqs = mc.getPrimerSeqs(settings)
+	mc.writePrimerFasta(primerSeqs, args.outfile)
+
+
+def cleaveReads(args):
+	settings = mc.loadIni(args.inifile)
+	primerLens = [len(x) for x in settings['prm_seq']]
+	prmCuts = mc.combinePrimers(args.bamfile,primerLens)
+	mc.applyCuts(args.fastqfile,args.outfile,prmCuts)
+
+
+def splitReads(args):
+	settings = mc.loadIni(args.inifile)
+	restSeqs = settings['re_seq']
+	# TODO: Substitute reference genome with reads (?)
+	mc.findRestrictionSeqs(args.fastqfile,args.outfile,restSeqs)
+
+
+# Huge wall of argparse text starts here
 def main():
 	descIniFile = 'File containing experiment specific details'
 	descFqFile = 'Fastq file containing actual data from sequencing'
@@ -24,7 +46,7 @@ def main():
 	parser_mkprfa.add_argument('outfile',
 		type=str,
 		help='Fasta file with primer sequences')
-	parser_mkprfa.set_defaults(func=mc4ctools.makePrimerFasta)
+	parser_mkprfa.set_defaults(func=makePrimerFasta)
 
 	#
 	parser_clvprm = subparsers.add_parser('cleavereads',
@@ -41,7 +63,7 @@ def main():
 	parser_clvprm.add_argument('outfile',
 		type=str,
 		help='Fastq file to dump primer cleaved sequences into')
-	parser_clvprm.set_defaults(func=mc4ctools.cleaveReads)
+	parser_clvprm.set_defaults(func=cleaveReads)
 
 	#
 	parser_splrest = subparsers.add_parser('splitreads',
@@ -55,7 +77,7 @@ def main():
 	parser_splrest.add_argument('outfile',
 		type=str,
 		help='Fasta file to dump restriction site split sequences into')
-	parser_splrest.set_defaults(func=mc4ctools.splitReads)
+	parser_splrest.set_defaults(func=splitReads)
 
 
 	args = parser.parse_args(sys.argv[1:])

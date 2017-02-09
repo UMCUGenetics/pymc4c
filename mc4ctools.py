@@ -1,4 +1,3 @@
-### --- Picking up at S06 RFS01 here --- ###
 # TODO: Check correctness of this implementation, might contain some basepair shifts due to 0vs1 based genome stuff
 
 import m2p
@@ -14,6 +13,7 @@ import collections
 
 fastaIdFormat='>PI:{};WI:{};WN:{}\n{}\n'
 referenceNameFormat='>RD:{};IN:{}'
+
 
 def loadIni(iniFile):
 	# Read data from file, stuff it into a dict
@@ -43,6 +43,8 @@ def loadIni(iniFile):
 	return settings
 
 
+### makeprimerfa implementation ###
+
 def splitStringTo(item,maxLen=50):
 	return [str(item[ind:ind+maxLen]) for ind in range(0, len(item), maxLen/2)]
 
@@ -60,6 +62,7 @@ def seqToFasta(sequence,baseId):
 		outString+=fastaIdFormat.format(
 			baseId, i+1, len(split),
 			val)
+			
 	return outString
 
 
@@ -102,11 +105,7 @@ def writePrimerFasta(primerSeqs,targetFile):
 			outFasta.write(seqToFasta(seq,str(i+1)))
 
 
-def makePrimerFasta(args):
-	settings = loadIni(args.inifile)
-	primerSeqs = getPrimerSeqs(settings)
-	writePrimerFasta(primerSeqs, args.outfile)
-
+### cleavereads implementation ###
 
 # This class can perhaps be replaced by a panda frame later
 class SimpleRead(object):
@@ -163,7 +162,7 @@ class SimpleRead(object):
 			self.winNum,
 			self.cigar])
 
-# This stuff happens after the bowtie2 part in s06
+
 def groupPrimers(matchList):
 	# Split by primer type to ensure we only combine primes of the same sort
 	for side in set(x.prmType for x in matchList):
@@ -283,12 +282,7 @@ def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 					dumpFile.write(readPhred[x[0]:x[1]]+'\n')
 
 
-def cleaveReads(args):
-	settings = loadIni(args.inifile)
-	primerLens = [len(x) for x in settings['prm_seq']]
-	prmCuts = combinePrimers(args.bamfile,primerLens)
-	applyCuts(args.fastqfile,args.outfile,prmCuts)
-
+### splitreads implementation ###
 
 def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 	compRestSeqs = [str(Seq(x).reverse_complement()) for x in restSeqs]
@@ -321,11 +315,5 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 				dumpFile.write(readPhred[x[0]:x[1]]+'\n')
 
 			cutList.append([readName,thisCut])
+
 	return cutList
-
-
-def splitReads(args):
-	settings = loadIni(args.inifile)
-	restSeqs = settings['re_seq']
-	# TODO: Substitute reference genome with reads (?)
-	findRestrictionSeqs(args.fastqfile,args.outfile,restSeqs)
