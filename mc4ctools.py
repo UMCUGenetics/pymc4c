@@ -62,7 +62,7 @@ def seqToFasta(sequence,baseId):
 		outString+=fastaIdFormat.format(
 			baseId, i+1, len(split),
 			val)
-			
+
 	return outString
 
 
@@ -257,10 +257,6 @@ def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 	with open(inFile,'r') as fqFile, open(outFile,'w') as dumpFile:
 		# Indexing is lead by cutlist, contains less than or equal to inFile
 		for cut in cutList:
-			# No cuts can be made, ignore this sequence
-			if cut[1] == []:
-				continue
-
 			# Assuming both lists are sorted by read id (int),
 		 	# play catchup between the two lists
 			while cut[0] > readId:
@@ -272,10 +268,17 @@ def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 
 			# Both lists are now either aligned or inFile is ahead
 			if readId == cut[0]:
+				# No cuts can be made, take whole sequence instead
+				if cut[1] == []:
+					cut[1] = [[0,len(readSeq)]]
 				# Split sequence, dump information
 				for i,x in enumerate(cut[1]):
+					if x[0] == None:
+						x[0] = 0
+					if x[1] == None:
+						x[1] = len(readSeq)
 					# Extend the identifier
-					dumpFile.write(readName+';'+cutDesc+':'+str(i)+'\n')#+':'+str(x[0])+'-'+str(x[1])
+					dumpFile.write(readName+';'+cutDesc+':'+str(i)+';'+cutDesc+'.S:'+str(x[0])+';'+cutDesc+'.E:'+str(x[1])+'\n')#+':'+str(x[0])+'-'+str(x[1])
 					# Dump the actual sub sequence
 					dumpFile.write(readSeq[x[0]:x[1]]+'\n')
 					dumpFile.write(readPlus+'\n')
@@ -304,11 +307,18 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 				for i in xrange(len(matches)-1):
 					thisCut.append([matches[i][0],matches[i+1][0]])
 				thisCut.append([matches[-1][0],None])
+			else:
+				thisCut.append([None,None])
 
 			# Split sequence, dump information
 			for i,x in enumerate(thisCut):
+				if x[0] == None:
+					x[0] = 0
+				if x[1] == None:
+					x[1] = len(readSeq)
 				# Extend the identifier
-				dumpFile.write(readName+';'+cutDesc+':'+str(i)+'\n')#+':'+str(x[0])+'-'+str(x[1])
+				#dumpFile.write(readName+';'+cutDesc+':'+str(i)+'\n')#+':'+str(x[0])+'-'+str(x[1])
+				dumpFile.write(readName+';'+cutDesc+':'+str(i)+';'+cutDesc+'.S:'+str(x[0])+';'+cutDesc+'.E:'+str(x[1])+'\n')#+':'+str(x[0])+'-'+str
 				# Dump the actual sub sequence
 				dumpFile.write(readSeq[x[0]:x[1]]+'\n')
 				dumpFile.write(readPlus+'\n')
