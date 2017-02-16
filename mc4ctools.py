@@ -113,7 +113,7 @@ class SimpleRead(object):
 	def __init__(self, read, prmLen):
 		primerDict = dict(item.split(":") for item in read.query_name.split(";"))
 
-		self.prmType = primerDict['PI'][-1]
+		self.prmType = int(primerDict['PI'][-1])
 		self.prmFlag = read.flag & ~(1<<8) # Set 9th bit to 0 to state primary alignment
 		self.readID=int(dict(item.split(":") for item in read.reference_name.split(";"))['RD'])
 		self.startAln = read.reference_start
@@ -166,7 +166,7 @@ class SimpleRead(object):
 def groupPrimers(matchList):
 	# Split by primer type to ensure we only combine primes of the same sort
 	for side in set(x.prmType for x in matchList):
-		thisSide = [x for x in matchList if x.prmType.startswith(side)]
+		thisSide = [x for x in matchList if x.prmType == side]
 		if len(thisSide) > 1:
 			# Merge latter listed reads into earlier reads if overlapping
 			for j in xrange(len(thisSide)-1, -1, -1):
@@ -204,7 +204,7 @@ def findCuts(matchList):
 
 	# If the first primer points to the start, accept it
 	if matchList[0].prmFlag&(1<<4)==16:
-		cutList.append([None,matchList[0].endAln])
+		cutList.append([None,matchList[0].startAln,0,matchList[0].prmType])
 
 	# Any two subsequent primers pointing toward eachother are accepted,
 	# but ensure they are not the same primer
@@ -212,14 +212,14 @@ def findCuts(matchList):
 		if matchList[i].prmFlag&(1<<4)==0 and \
 				matchList[i+1].prmFlag&(1<<4)==16 and \
 				matchList[i].prmType != matchList[i+1].prmType:
-			cutList.append([matchList[i].startAln,matchList[i+1].endAln])
+			cutList.append([matchList[i].endAln,matchList[i+1].startAln,matchList[i].prmType,matchList[i+1].prmType])
 		# TODO: Check if we need to add +1 to the end position above
 		# If we want to remove reads where 2 of the same primer type are
 		# pointing toward eachother we could return an empty list here
 
 	# If the last primer points to the end, accept it
 	if matchList[-1].prmFlag&(1<<4)==0:
-		cutList.append([matchList[-1].startAln,None])
+		cutList.append([matchList[-1].endAln,None,matchList[-1].prmType,0])
 
 	return cutList
 
@@ -250,7 +250,7 @@ def combinePrimers(insam,prmLen,qualThreshold=.20):
 	return cutAllList
 
 
-def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
+def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='PC'):
 	readId=-1
 	readName=''
 	readSeq=''
@@ -270,7 +270,7 @@ def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 			if readId == cut[0]:
 				# No cuts can be made, take whole sequence instead
 				if cut[1] == []:
-					cut[1] = [[0,len(readSeq)]]
+					cut[1] = [[0,len(readSeq),0,0]]
 				# Split sequence, dump information
 				for i,x in enumerate(cut[1]):
 					if x[0] == None:
@@ -279,10 +279,17 @@ def applyCuts(inFile,outFile,cutList,cutDesc='PC'):
 						x[1] = len(readSeq)
 					# Extend the identifier
 					dumpFile.write(readName+';'+cutDesc+':'+str(i)+';'+cutDesc+'.S:'+str(x[0])+';'+cutDesc+'.E:'+str(x[1])+'\n')#+':'+str(x[0])+'-'+str(x[1])
-					# Dump the actual sub sequence
-					dumpFile.write(readSeq[x[0]:x[1]]+'\n')
+					# Dump the actual sub sequence with primers
+					dumpFile.write(str(Seq(primerSeqs[x[2]])) +
+						readSeq[x[0]:x[1]] +
+						str(Seq(primerSeqs[x[3]]).reverse_complement()) +
+						'\n')
 					dumpFile.write(readPlus+'\n')
-					dumpFile.write(readPhred[x[0]:x[1]]+'\n')
+					# Add perfect phred scores for forced primers
+					dumpFile.write('~'*len(primerSeqs[x[2]]) +
+						readPhred[x[0]:x[1]] +
+						'~'*len(primerSeqs[x[3]]) +
+						'\n')
 
 
 ### splitreads implementation ###
@@ -327,3 +334,33 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 			cutList.append([readName,thisCut])
 
 	return cutList
+
+
+### extending mapped read parts to restriction sites ###
+
+
+def findReferenceRestSites(refFile,restSeqs,lineLen=50):
+    compRestSeqs = [str(Seq(x).reverse_complement()) for x in restSeqs]
+    restSeqs.extend(compRestSeqs)
+    reSeqs='|'.join(restSeqs)
+    restSitesDict = dict()
+
+    with open(refFile,'r') as reference:
+        curChrom = None
+        offset = -lineLen
+        matches = []
+        readSeq = ''
+        for line in reference:
+            if line[0] == '>':
+                matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start()])
+                readSeq = 'N'*lineLen*2
+                offset = -lineLen
+                matches = []
+                restSitesDict[line[1:].rsplit()[0]] = matches
+            else:
+                readSeq = readSeq[lineLen:]+line.rsplit()[0].upper()
+                matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start() < lineLen])
+                offset += lineLen
+        matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start()])
+
+    return restSitesDict

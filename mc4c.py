@@ -4,7 +4,7 @@ import os
 
 import log
 import prep
-
+import numpy as np
 import mc4ctools as mc
 
 
@@ -17,8 +17,12 @@ def makePrimerFasta(args):
 def cleaveReads(args):
 	settings = mc.loadIni(args.inifile)
 	primerLens = [len(x) for x in settings['prm_seq']]
+	primers = ['']
+	primers.extend(settings['prm_seq'])
+	print primers
 	prmCuts = mc.combinePrimers(args.bamfile,primerLens)
-	mc.applyCuts(args.fastqfile,args.outfile,prmCuts)
+	print prmCuts[:10]
+	mc.applyCuts(args.fastqfile,args.outfile,prmCuts,primers)
 
 
 def splitReads(args):
@@ -26,6 +30,13 @@ def splitReads(args):
 	restSeqs = settings['re_seq']
 	# TODO: Substitute reference genome with reads (?)
 	mc.findRestrictionSeqs(args.fastqfile,args.outfile,restSeqs)
+
+
+def findRefRestSites(args):
+	settings = mc.loadIni(args.inifile)
+	restSeqs = settings['re_seq']
+	restDict = mc.findReferenceRestSites(args.fastafile,restSeqs)
+	np.savez_compressed(args.outfile,restrsites=restDict)
 
 
 # Huge wall of argparse text starts here
@@ -79,6 +90,19 @@ def main():
 		help='Fasta file to dump restriction site split sequences into')
 	parser_splrest.set_defaults(func=splitReads)
 
+	#
+	parser_refrest = subparsers.add_parser('refrestr',
+		description='Determine restriction site lcoations on reference by their sequences')
+	parser_refrest.add_argument('inifile',
+		type=str,
+		help=descIniFile)
+	parser_refrest.add_argument('fastafile',
+		type=str,
+		help='Reference fasta file you map data to (eg Hg19)')
+	parser_refrest.add_argument('outfile',
+		type=str,
+		help='Numpy compressed file containing restriction site locations')
+	parser_refrest.set_defaults(func=findRefRestSites)
 
 	args = parser.parse_args(sys.argv[1:])
 	log.printArgs(args)
