@@ -115,7 +115,7 @@ class SimpleRead(object):
 
 		self.prmType = int(primerDict['PI'][-1])
 		self.prmFlag = read.flag & ~(1<<8) # Set 9th bit to 0 to state primary alignment
-		self.readID=int(dict(item.split(":") for item in read.reference_name.split(";"))['RD'])
+		self.readID = int(dict(item.split(":") for item in read.reference_name.split(";"))['RD'])
 		self.startAln = read.reference_start
 		self.endAln = read.reference_start + read.infer_query_length(always=True)
 		self.prmSize = prmLen[int(self.prmType)-1] # Should be length of the original primer?

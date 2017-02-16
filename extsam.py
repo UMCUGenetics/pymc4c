@@ -2,6 +2,7 @@ import sys
 import pysam
 import numpy as np
 import bisect as bs
+import collections
 
 def mapToRefSite(refSiteList,mappedPos):
     # Use bisect implementation to quickly find a matching position
@@ -38,13 +39,20 @@ samfile = pysam.AlignmentFile(insam, "rb")
 
 prevRead = samfile.next()
 prevResult = [-1,-1]
+prevID = ''
+curID = ''
 curStack = []
+# byReads = []
+
+byReads = collections.defaultdict(list)
 
 for read in samfile:
     if not read.is_unmapped:
         if read.reference_name not in restrefs:
             continue
         result = mapToRefSite(restrefs[read.reference_name],[read.reference_start, read.reference_start + read.infer_query_length(always=True)])
+
+        curID = int(dict(item.split(":") for item in read.query_name.split(";"))['RD'])
 
         # If two subsequent reads:
             # were mapped to the same chromosome,
@@ -54,27 +62,24 @@ for read in samfile:
         if prevRead.reference_id == read.reference_id \
             and prevRead.is_reverse == read.is_reverse \
             and result[0] <= prevResult[1] and result[1] >= prevResult[0] \
-            and int(dict(item.split(":") for item in read.query_name.split(";"))['RD']) \
-                == int(dict(item.split(":") for item in prevRead.query_name.split(";"))['RD']):
+            and curID == prevID:
                  curStack.append((read,result))
         else:
             if curStack != []:
                 for i in range(min([x[1][0] for x in curStack]), max([x[1][1] for x in curStack])+1):
-                    readID = int(dict(item.split(":") for item in prevRead.query_name.split(";"))['RD']),[x[1] for x in curStack]
-                    restrefs[read.reference_name][i].append(readID)
+                    # print i,len(restrefs[read.reference_name])
+                    # readID = int(dict(item.split(":") for item in prevRead.query_name.split(";"))['RD']),[x[1] for x in curStack]
+                    restrefs[prevRead.reference_name][i].append(prevID)
                 #print int(dict(item.split(":") for item in prevRead.query_name.split(";"))['RD']),[x[1] for x in curStack], min([x[1][0] for x in curStack]), max([x[1][1] for x in curStack])
             curStack = [(read,result)]
 
         prevRead = read
         prevResult = result
+        prevID = curID
 
 for key in restrefs:
     curList = restrefs[key]
-    keyLen = len(curList)
-
-
-    # Insert one item to remove some edge issues
-    curList.insert(0,[0,0])
+    keyLen = len(curList)-1
 
     # Turn restriction site locations into meaningful regions
     for i in xrange(0,keyLen):
@@ -82,13 +87,15 @@ for key in restrefs:
         curList[i][1] = sum(curList[i+1][:2])/2
 
     # Remove empty values from the dataset
-    for x in xrange(keyLen,0,-1):
+    for x in xrange(keyLen,-1,-1):
         if len(curList[x]) <= 2:
             curList.pop(x)
-        #if max(len(curList[x]),len(curList[x+1])) == 2:
-        #    curList.pop(x+1)
-    # Remove the added edge item
-    #curList.pop(0)
-    print keyLen, len(curList)
-    for x in curList:
-        print x[:2],len(x)-2
+        else:
+            curList[x] = ((curList[x][0],curList[x][1]),curList[x][2:])
+
+    # Make links from read indexes to regions
+    for i,val in enumerate(curList):
+        for x in val[1]:
+            byReads[x].append((key,i))
+
+np.savez_compressed(sys.argv[3],byregion=restrefs,byread=dict(byReads))
