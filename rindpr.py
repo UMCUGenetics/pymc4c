@@ -29,7 +29,6 @@ def findSites(refFile,restSeqs,lineLen=50):
                 offset += lineLen
         matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start()])
 
-    print restSitesDict
     return restSitesDict
 
 np.savez_compressed(sys.argv[2],restrsites=findSites(sys.argv[1],['GACC']))

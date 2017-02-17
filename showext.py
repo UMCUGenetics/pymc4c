@@ -3,6 +3,7 @@ import numpy as np
 import collections
 
 import matplotlib.pyplot as pp
+import bisect as bs
 
 selection = collections.defaultdict(list)
 
@@ -10,8 +11,60 @@ restout = np.load(sys.argv[1])
 byread = restout['byread'].item()
 byregion = restout['byregion'].item()
 
-targetRegions = set()
-targetReads = set()
+def coordsToRegionIndex(regionDict,chromosome,start,end):
+    regionList = regionDict[chromosome]
+    # Use bisect implementation to quickly find a matching position
+    left = bs.bisect([x[0][1] for x in regionList],start)
+    right = bs.bisect([x[0][0] for x in regionList],end)
+    print left,right
+    refLen = len(regionList)-1
+
+    # Don't bother beyond the last position in the list
+    right = min(right, refLen)
+    return left, right
+
+
+def getReadsByRegions(regionDict,regions):
+    targetReads = set()
+    for regionIndex in regions:
+        region = regionDict[regionIndex[0]][regionIndex[1]]
+        for read in region[1]:
+            targetReads.add(read)
+    return targetReads
+
+def getRegionsByReads(readDict,reads):
+    selection = collections.defaultdict(list)
+    for read in reads:
+        for location in byread[read]:
+            if location[0] not in selection:
+                selection[location[0]] = collections.defaultdict(list)
+            selection[location[0]][location[1]].append(read) #byread[read]
+    return selection
+
+def filterByRegions(regionDict,regions):
+    mergeSet = set()
+    for region in regions:
+        # print region
+        chrom = region[0]
+        location = region[1]
+        mergeSet = mergeSet.union(regionDict[chrom][location])
+    # for chrom in regionDict:
+        # for region in regionDict[chrom]:
+
+    return mergeSet
+
+start,end = coordsToRegionIndex(byregion,'chr7',3993587,5182184)
+for index in range(start,end):
+    print index,byregion['chr7'][index]
+selReads = getReadsByRegions(byregion,[['chr7',index] for index in range(start,end)])
+print selReads
+touchingRegions = getRegionsByReads(byread,selReads)
+print touchingRegions
+filteredReads = filterByRegions(touchingRegions,[('chr7',x) for x in range(22,27)])
+print filteredReads
+filtTouchRegions = getRegionsByReads(byread,filteredReads)
+print filtTouchRegions
+exit()
 
 for key in byregion:
     for region in byregion[key]:
@@ -42,14 +95,15 @@ for chromosome in sortedKeys:
     sortedRegions.sort()
     for region in sortedRegions:
         reads = selection[chromosome][region]
-        if len(reads) > 25:
+        if len(reads) > 50:
             values.append(len(reads))
-            print region,chromosome,byregion[chromosome][region][0],len(reads),(chromosome,byregion[chromosome][region][0]) in targetRegions
+            labels.append(chromosome+':'+str(region))#str(byregion[chromosome][region][0][0])+'-'+str(byregion[chromosome][region][0][1]))
+            print region,chromosome,byregion[chromosome][region][0],len(reads)#,(chromosome,byregion[chromosome][region][0]) in targetRegions
         #if len(region)>3:
         #    print region,len(selection[region])
 
 
-pp.bar(range(len(values)),values,log=True)
-#pp.xticks(np.arange(len(values)),labels)
+pp.bar(range(len(values)),values,label=labels,log=True)
+pp.xticks(np.arange(len(values)),labels,rotation=90)
 
 pp.show()
