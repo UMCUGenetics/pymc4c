@@ -278,7 +278,13 @@ def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='PC'):
 					if x[1] == None:
 						x[1] = len(readSeq)
 					# Extend the identifier
-					dumpFile.write(readName+';'+cutDesc+':'+str(i)+';'+cutDesc+'.S:'+str(x[0])+';'+cutDesc+'.E:'+str(x[1])+'\n')#+':'+str(x[0])+'-'+str(x[1])
+					dumpFile.write(readName + ';' +
+						cutDesc + ':' + str(i) + ';' +
+						cutDesc + '.S:' + str(x[0]) + ';' +
+						cutDesc + '.E:' + str(x[1]) + ';' +
+						cutDesc + '.L:' + str(x[2]) + ';' +
+						cutDesc + '.R:' + str(x[3]) +
+						'\n')#+':'+str(x[0])+'-'+str(x[1])
 					# Dump the actual sub sequence with primers
 					dumpFile.write(str(Seq(primerSeqs[x[2]])) +
 						readSeq[x[0]:x[1]] +
@@ -295,8 +301,9 @@ def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='PC'):
 ### splitreads implementation ###
 
 def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
-	compRestSeqs = [str(Seq(x).reverse_complement()) for x in restSeqs]
-	restSeqs.extend(compRestSeqs)
+	# compRestSeqs = [str(Seq(x).reverse_complement()) for x in restSeqs]
+	# restSeqs.extend(compRestSeqs)
+	#restSeqs.sort(key=lambda item: (-len(item), item))
 	reSeqs='|'.join(restSeqs)
 	cutList = []
 
@@ -307,25 +314,30 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 			readPlus=fqFile.next().rstrip()
 			readPhred=fqFile.next().rstrip()
 
-			matches = [[x.start(), x.end()] for x in (re.finditer(reSeqs, readSeq))]
+			matches = [[x.start(), x.end(), x.group()] for x in (re.finditer(reSeqs, readSeq))]
 			thisCut = []
 			if matches != []:
-				thisCut.append([None,matches[0][0]])
+				thisCut.append((0,matches[0][0],
+					-1,restSeqs.index(matches[0][2])))
 				for i in xrange(len(matches)-1):
-					thisCut.append([matches[i][0],matches[i+1][0]])
-				thisCut.append([matches[-1][0],None])
+					thisCut.append((matches[i][0],matches[i+1][0],
+						restSeqs.index(matches[i][2]),restSeqs.index(matches[i+1][2])))
+				thisCut.append((matches[-1][0],len(readSeq),
+					restSeqs.index(matches[-1][2]),-1))
 			else:
-				thisCut.append([None,None])
+				thisCut.append((0,len(readSeq),-1,-1))
 
 			# Split sequence, dump information
 			for i,x in enumerate(thisCut):
-				if x[0] == None:
-					x[0] = 0
-				if x[1] == None:
-					x[1] = len(readSeq)
 				# Extend the identifier
 				#dumpFile.write(readName+';'+cutDesc+':'+str(i)+'\n')#+':'+str(x[0])+'-'+str(x[1])
-				dumpFile.write(readName+';'+cutDesc+':'+str(i)+';'+cutDesc+'.S:'+str(x[0])+';'+cutDesc+'.E:'+str(x[1])+'\n')#+':'+str(x[0])+'-'+str
+				dumpFile.write(readName + ';' +
+					cutDesc + ':' + str(i) + ';' +
+					cutDesc + '.S:' + str(x[0]) + ';' +
+					cutDesc + '.E:' + str(x[1]) + ';' +
+					cutDesc + '.L:' + str(x[2]+1) + ';' +
+					cutDesc + '.R:' + str(x[3]+1) +
+					'\n')#+':'+str(x[0])+'-'+str
 				# Dump the actual sub sequence
 				dumpFile.write(readSeq[x[0]:x[1]]+'\n')
 				dumpFile.write(readPlus+'\n')
@@ -338,29 +350,26 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 
 ### extending mapped read parts to restriction sites ###
 
-
 def findReferenceRestSites(refFile,restSeqs,lineLen=50):
-    compRestSeqs = [str(Seq(x).reverse_complement()) for x in restSeqs]
-    restSeqs.extend(compRestSeqs)
-    reSeqs='|'.join(restSeqs)
-    restSitesDict = dict()
+	reSeqs='|'.join(restSeqs)
+	restSitesDict = dict()
 
-    with open(refFile,'r') as reference:
-        curChrom = None
-        offset = -lineLen
-        matches = []
-        readSeq = ''
-        for line in reference:
-            if line[0] == '>':
-                matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start()])
-                readSeq = 'N'*lineLen*2
-                offset = -lineLen
-                matches = []
-                restSitesDict[line[1:].rsplit()[0]] = matches
-            else:
-                readSeq = readSeq[lineLen:]+line.rsplit()[0].upper()
-                matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start() < lineLen])
-                offset += lineLen
-        matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start()])
+	with open(refFile,'r') as reference:
+		curChrom = None
+		offset = -lineLen
+		matches = []
+		readSeq = ''
+		for line in reference:
+			if line[0] == '>':
+				matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start()])
+				readSeq = 'N'*lineLen*2
+				offset = -lineLen
+				matches = []
+				restSitesDict[line[1:].rsplit()[0]] = matches
+			else:
+				readSeq = readSeq[lineLen:]+line.rsplit()[0].upper()
+				matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start() < lineLen])
+				offset += lineLen
+		matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start()])
 
-    return restSitesDict
+	return restSitesDict
