@@ -11,6 +11,8 @@ import pysam
 import parse
 import collections
 
+import bisect as bs
+
 fastaIdFormat='>PI:{};WI:{};WN:{}\n{}\n'
 referenceNameFormat='>RD:{};IN:{}'
 
@@ -317,10 +319,10 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 			matches = [[x.start(), x.end(), x.group()] for x in (re.finditer(reSeqs, readSeq))]
 			thisCut = []
 			if matches != []:
-				thisCut.append((0,matches[0][0],
+				thisCut.append((0,matches[0][1],
 					-1,restSeqs.index(matches[0][2])))
 				for i in xrange(len(matches)-1):
-					thisCut.append((matches[i][0],matches[i+1][0],
+					thisCut.append((matches[i][0],matches[i+1][1],
 						restSeqs.index(matches[i][2]),restSeqs.index(matches[i+1][2])))
 				thisCut.append((matches[-1][0],len(readSeq),
 					restSeqs.index(matches[-1][2]),-1))
@@ -373,3 +375,121 @@ def findReferenceRestSites(refFile,restSeqs,lineLen=50):
 		matches.extend([[x.start()+offset, x.end()+offset] for x in (re.finditer(reSeqs, readSeq)) if x.start()])
 
 	return restSitesDict
+
+
+
+### combine and export data for plotting tools ###
+
+
+def mapToRefSite(refSiteList,mappedPos):
+	# Use bisect implementation to quickly find a matching position
+	pos = bs.bisect_left(refSiteList,mappedPos)
+	refLen = len(refSiteList)-1
+
+	# Don't bother beyond the last position in the list
+	pos = min(pos, refLen)
+
+	# Move start and end positions to match our heuristic
+	left = pos
+	right = pos
+	while refSiteList[left][0] >= mappedPos[0] + 10 and left > 0:
+		left -= 1
+	while refSiteList[right][1] <= mappedPos[1] - 10 and right < refLen:
+		right += 1
+
+	return [left, right]
+
+def exportToPlot(restrefs,insam,uniqid=['RD','PC'],minqual=20):
+	#insam = sys.argv[1]
+	samfile = pysam.AlignmentFile(insam, "rb")
+
+	prevRead = samfile.next()
+	prevResult = [-1,-1]
+	prevID = ''
+	curID = ''
+	curStack = []
+	curSplit = None
+	# byReads = []
+
+	byReads = collections.defaultdict(list)
+
+	headers = []
+	readIDs = []
+	readInfos = []
+
+	for read in samfile:
+		if not read.is_unmapped and read.mapping_quality >= minqual:
+			if read.reference_name not in restrefs:
+				continue
+			result = mapToRefSite(restrefs[read.reference_name],[read.reference_start, read.reference_start + read.infer_query_length(always=True)])
+
+			# Treat main read + primer cleave information together as unique read id
+			curSplit = [item.split(":") for item in read.query_name.split(";")]
+			curDict = dict(curSplit)
+			curID = ';'.join([curDict[x] for x in uniqid])
+			curInfo = [
+				read.reference_name,
+				read.reference_start,
+				read.reference_start + read.infer_query_length(always=True),
+				read.is_reverse,
+				result[0],
+				result[1],
+				False
+				]
+
+			# If two subsequent reads:
+				# were mapped to the same chromosome,
+				# and to the same strand,
+				# and with at least one overlapping restriction site
+				# and have the same mother read...
+			if prevRead.reference_id == read.reference_id \
+				and prevRead.is_reverse == read.is_reverse \
+				and result[0] <= prevResult[1] and result[1] >= prevResult[0] \
+				and curID == prevID:
+					 curStack.append((read,result))
+					 curInfo[-1] = True
+			else:
+				if curStack != []:
+					for i in range(min([x[1][0] for x in curStack]), max([x[1][1] for x in curStack])+1):
+						restrefs[prevRead.reference_name][i].append((prevID,prevRead.is_reverse))
+				curStack = [(read,result)]
+
+			readIDs.append(curID)
+			readInfos.append([int(x[1]) for x in curSplit] + curInfo)
+			headers = [x[0] for x in curSplit]
+
+			prevRead = read
+			prevResult = result
+			prevID = curID
+
+	# Once more to empty the stack
+	for i in range(min([x[1][0] for x in curStack]), max([x[1][1] for x in curStack])+1):
+		restrefs[prevRead.reference_name][i].append((prevID,prevRead.is_reverse))
+
+	headers.extend(['chr','start','end','reverse','restrext.start','restrext.end','uncut'])
+
+	pdFrame = pd.DataFrame(readInfos, index=readIDs, columns=headers)
+
+	for key in restrefs:
+		curList = restrefs[key]
+		keyLen = len(curList)-1
+
+		# Turn restriction site locations into meaningful regions
+		for i in xrange(0,keyLen):
+			curList[i][0] = sum(curList[i][:2])/2
+			curList[i][1] = sum(curList[i+1][:2])/2
+
+		# Remove empty values from the dataset
+		for x in xrange(keyLen,-1,-1):
+			if len(curList[x]) <= 2:
+				curList.pop(x)
+			else:
+				curList[x] = ((curList[x][0],curList[x][1]),curList[x][2:])
+
+		# Make links from read indexes to regions
+		for i,val in enumerate(curList):
+			for x in val[1]:
+				byReads[x[0]].append((key,i))
+
+	return restrefs,byReads,pdFrame
+	#np.savez_compressed(sys.argv[3],byregion=restrefs,byread=dict(byReads))

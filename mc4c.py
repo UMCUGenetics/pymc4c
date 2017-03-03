@@ -36,8 +36,21 @@ def findRefRestSites(args):
 	settings = mc.loadIni(args.inifile)
 	restSeqs = settings['re_seq']
 	restDict = mc.findReferenceRestSites(args.fastafile,restSeqs)
-	np.savez_compressed(args.outfile,restrsites=restDict)
+	np.savez_compressed(args.restfile,restrsites=restDict)
 
+
+def exportToPlot(args):
+	print 'Loading restrsites, this takes a while...'
+	restrefs=np.load(args.restfile)['restrsites'].item()
+	print 'Finished loading, moving on'
+	restRefs,byReads,pdFrame = mc.exportToPlot(restrefs,args.bamfile)
+	print pdFrame
+	np.savez_compressed(args.plotfile,
+		byregion=restRefs,
+		byread=dict(byReads),
+		pdframe=pdFrame,
+		pdcolumns=pdFrame.columns,
+		pdindex=pdFrame.index)
 
 # Huge wall of argparse text starts here
 def main():
@@ -67,7 +80,7 @@ def main():
 		help=descIniFile)
 	parser_clvprm.add_argument('bamfile',
 		type=str,
-		help='Bam file after makeprimerfa results were mapped by bowtie2') # then sorted and indexed using samtools'?
+		help='Bam file after makeprimerfa results were mapped by bowtie2')
 	parser_clvprm.add_argument('fastqfile',
 		type=str,
 		help=descFqFile)
@@ -92,17 +105,31 @@ def main():
 
 	#
 	parser_refrest = subparsers.add_parser('refrestr',
-		description='Determine restriction site lcoations on reference by their sequences')
+		description='Determine restriction site locations on reference by their sequences')
 	parser_refrest.add_argument('inifile',
 		type=str,
 		help=descIniFile)
 	parser_refrest.add_argument('fastafile',
 		type=str,
 		help='Reference fasta file you map data to (eg Hg19)')
-	parser_refrest.add_argument('outfile',
+	parser_refrest.add_argument('restfile',
 		type=str,
 		help='Numpy compressed file containing restriction site locations')
 	parser_refrest.set_defaults(func=findRefRestSites)
+
+	#
+	parser_export = subparsers.add_parser('export',
+		description='Combine and export results for interactive plotting')
+	parser_export.add_argument('bamfile',
+		type=str,
+		help='Bam file after mapping previously split fastq data to reference genome (eg Hg19) using BWA')
+	parser_export.add_argument('restfile',
+		type=str,
+		help='Numpy compressed file containing restriction site locations')
+	parser_export.add_argument('plotfile',
+		type=str,
+		help='Numpy compressed file containing restriction site locations')
+	parser_export.set_defaults(func=exportToPlot)
 
 	args = parser.parse_args(sys.argv[1:])
 	log.printArgs(args)
