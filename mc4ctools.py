@@ -13,8 +13,8 @@ import collections
 
 import bisect as bs
 
-fastaIdFormat='>PI:{};WI:{};WN:{}\n{}\n'
-referenceNameFormat='>RD:{};IN:{}'
+fastaIdFormat='>Pr.Id:{};Pr.Wi:{};Pr.Wn:{}\n{}\n'
+#referenceNameFormat='>RD:{};IN:{}'
 
 
 def loadIni(iniFile):
@@ -115,16 +115,16 @@ class SimpleRead(object):
 	def __init__(self, read, prmLen):
 		primerDict = dict(item.split(":") for item in read.query_name.split(";"))
 
-		self.prmType = int(primerDict['PI'][-1])
+		self.prmType = int(primerDict['Pr.Id'][-1])
 		self.prmFlag = read.flag & ~(1<<8) # Set 9th bit to 0 to state primary alignment
-		self.readID = int(dict(item.split(":") for item in read.reference_name.split(";"))['RD'])
+		self.readID = int(dict(item.split(":") for item in read.reference_name.split(";"))['Rd.Id'])
 		self.startAln = read.reference_start
 		self.endAln = read.reference_start + read.infer_query_length(always=True)
 		self.prmSize = prmLen[int(self.prmType)-1] # Should be length of the original primer?
 						# prm_len{prm_info(ai,1)}(prm_info(ai,8))
 		self.alnErr = [sum(x[1] for x in read.cigartuples if x[0] in [1,2])]
-		self.winInd = [int(primerDict['WI'])]
-		self.winNum = int(primerDict['WN'])
+		self.winInd = [int(primerDict['Pr.Wi'])]
+		self.winNum = int(primerDict['Pr.Wn'])
 		self.cigar = [read.cigarstring]
 
 		# Cigar string information
@@ -232,7 +232,7 @@ def combinePrimers(insam,prmLen,qualThreshold=.20):
 	# Create a dict with lists of SimpleRead using referenceName as key
 	myDict = collections.defaultdict(list)
 	for read in samfile:
-		myDict[int(dict(item.split(":") for item in read.reference_name.split(";"))['RD'])].append(SimpleRead(read,prmLen))
+		myDict[int(dict(item.split(":") for item in read.reference_name.split(";"))['Rd.Id'])].append(SimpleRead(read,prmLen))
 
 	# Put data in referenceName sorted order
 	sortedKeys = myDict.keys()
@@ -252,13 +252,16 @@ def combinePrimers(insam,prmLen,qualThreshold=.20):
 	return cutAllList
 
 
-def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='PC'):
+def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='Cr'):
 	readId=-1
 	readName=''
 	readSeq=''
+	cutId = 1
 	with open(inFile,'r') as fqFile, open(outFile,'w') as dumpFile:
+
 		# Indexing is lead by cutlist, contains less than or equal to inFile
 		for cut in cutList:
+
 			# Assuming both lists are sorted by read id (int),
 		 	# play catchup between the two lists
 			while cut[0] > readId:
@@ -266,48 +269,56 @@ def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='PC'):
 				readSeq=fqFile.next().rstrip()
 				readPlus=fqFile.next().rstrip()
 				readPhred=fqFile.next().rstrip()
-				readId=int(dict(item.split(":") for item in readName[1:].split(";"))['RD'])
+				readId=int(dict(item.split(":") for item in readName[1:].split(";"))['Rd.Id'])
 
 			# Both lists are now either aligned or inFile is ahead
 			if readId == cut[0]:
+
 				# No cuts can be made, take whole sequence instead
 				if cut[1] == []:
 					cut[1] = [[0,len(readSeq),0,0]]
+
 				# Split sequence, dump information
 				for i,x in enumerate(cut[1]):
 					if x[0] == None:
 						x[0] = 0
 					if x[1] == None:
 						x[1] = len(readSeq)
+
 					# Extend the identifier
 					dumpFile.write(readName + ';' +
-						cutDesc + ':' + str(i) + ';' +
-						cutDesc + '.S:' + str(x[0]) + ';' +
-						cutDesc + '.E:' + str(x[1]) + ';' +
-						cutDesc + '.L:' + str(x[2]) + ';' +
-						cutDesc + '.R:' + str(x[3]) +
+						cutDesc + '.Id:' + str(cutId) + ';' +
+						cutDesc + '.SBp:' + str(x[0]) + ';' +
+						cutDesc + '.EBp:' + str(x[1]) + ';' +
+						cutDesc + '.SPr:' + str(x[2]) + ';' +
+						cutDesc + '.EPr:' + str(x[3]) +
 						'\n')#+':'+str(x[0])+'-'+str(x[1])
+
 					# Dump the actual sub sequence with primers
 					dumpFile.write(str(Seq(primerSeqs[x[2]])) +
 						readSeq[x[0]:x[1]] +
 						str(Seq(primerSeqs[x[3]]).reverse_complement()) +
 						'\n')
 					dumpFile.write(readPlus+'\n')
+
 					# Add perfect phred scores for forced primers
 					dumpFile.write('~'*len(primerSeqs[x[2]]) +
 						readPhred[x[0]:x[1]] +
 						'~'*len(primerSeqs[x[3]]) +
 						'\n')
 
+					cutId += 1
+
 
 ### splitreads implementation ###
 
-def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
+def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='Fr'):
 	# compRestSeqs = [str(Seq(x).reverse_complement()) for x in restSeqs]
 	# restSeqs.extend(compRestSeqs)
 	#restSeqs.sort(key=lambda item: (-len(item), item))
 	reSeqs='|'.join(restSeqs)
 	cutList = []
+	cutId = 1
 
 	with open(inFile,'r') as fqFile, open(outFile,'w') as dumpFile:
 		for read in fqFile:
@@ -331,19 +342,23 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='RC'):
 
 			# Split sequence, dump information
 			for i,x in enumerate(thisCut):
+
 				# Extend the identifier
 				#dumpFile.write(readName+';'+cutDesc+':'+str(i)+'\n')#+':'+str(x[0])+'-'+str(x[1])
 				dumpFile.write(readName + ';' +
-					cutDesc + ':' + str(i) + ';' +
-					cutDesc + '.S:' + str(x[0]) + ';' +
-					cutDesc + '.E:' + str(x[1]) + ';' +
-					cutDesc + '.L:' + str(x[2]+1) + ';' +
-					cutDesc + '.R:' + str(x[3]+1) +
+					cutDesc + '.Id:' + str(cutId)   + ';' +
+					cutDesc + '.SBp:' + str(x[0])   + ';' +
+					cutDesc + '.EBp:' + str(x[1])   + ';' +
+					cutDesc + '.SRs:' + str(x[2]+1) + ';' +
+					cutDesc + '.ERs:' + str(x[3]+1) +
 					'\n')#+':'+str(x[0])+'-'+str
+
 				# Dump the actual sub sequence
 				dumpFile.write(readSeq[x[0]:x[1]]+'\n')
 				dumpFile.write(readPlus+'\n')
 				dumpFile.write(readPhred[x[0]:x[1]]+'\n')
+
+				cutId += 1
 
 			cutList.append([readName,thisCut])
 
@@ -399,7 +414,7 @@ def mapToRefSite(refSiteList,mappedPos):
 
 	return [left, right]
 
-def exportToPlot(restrefs,insam,uniqid=['RD','PC'],minqual=20):
+def exportToPlot(restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 	#insam = sys.argv[1]
 	samfile = pysam.AlignmentFile(insam, "rb")
 
@@ -427,16 +442,28 @@ def exportToPlot(restrefs,insam,uniqid=['RD','PC'],minqual=20):
 			curSplit = [item.split(":") for item in read.query_name.split(";")]
 			curDict = dict(curSplit)
 			curID = ';'.join([curDict[x] for x in uniqid])
+
+			# Determine soft clipped basepairs at start and end of mapping
+			leftSkip = 0
+			rightSkip = 0
+			if read.cigartuples[0][0] = 4:
+				leftSkip = read.cigartuples[0][1]
+			if read.cigartuples[-1][0] = 4:
+				rightSkip = read.cigartuples[-1][1]
+
 			curInfo = [
 				read.reference_name,
 				read.reference_start,
 				read.reference_start + read.infer_query_length(always=True),
 				read.is_reverse,
+				leftSkip,
+				rightSkip,
 				result[0],
 				result[1],
-				False
+				True
 				]
 
+			# TODO are we missing out on a sanity check here? Say, sites 1,2,1 for example?
 			# If two subsequent reads:
 				# were mapped to the same chromosome,
 				# and to the same strand,
@@ -447,7 +474,7 @@ def exportToPlot(restrefs,insam,uniqid=['RD','PC'],minqual=20):
 				and result[0] <= prevResult[1] and result[1] >= prevResult[0] \
 				and curID == prevID:
 					 curStack.append((read,result))
-					 curInfo[-1] = True
+					 curInfo[-1] = False
 			else:
 				if curStack != []:
 					for i in range(min([x[1][0] for x in curStack]), max([x[1][1] for x in curStack])+1):
@@ -456,7 +483,6 @@ def exportToPlot(restrefs,insam,uniqid=['RD','PC'],minqual=20):
 
 			readIDs.append(curID)
 			readInfos.append([int(x[1]) for x in curSplit] + curInfo)
-			headers = [x[0] for x in curSplit]
 
 			prevRead = read
 			prevResult = result
@@ -466,7 +492,25 @@ def exportToPlot(restrefs,insam,uniqid=['RD','PC'],minqual=20):
 	for i in range(min([x[1][0] for x in curStack]), max([x[1][1] for x in curStack])+1):
 		restrefs[prevRead.reference_name][i].append((prevID,prevRead.is_reverse))
 
-	headers.extend(['chr','start','end','reverse','restrext.start','restrext.end','uncut'])
+	headers = [x[0] for x in curSplit]
+	headerConvert = {
+		'Fl.Id'  : 'FileID',
+		'Rd.Id'  : 'ReadId',
+		'Cr.Id'  : 'CircleId',
+		'Cr.SBp' : 'CircleStartBp',
+		'Cr.EBp' : 'CircleEndBp',
+		'Cr.SPr' : 'CircleStartPr',
+		'Cr.EPr' : 'CircleEndPr',
+		'Fr.Id'  : 'FragmentId',
+		'Fr.SBp' : 'FragmentStartBp',
+		'Fr.EBp' : 'FragmentEndBp',
+		'Fr.SRs' : 'FragmentStartRes',
+		'Fr.ERs' : 'FragmentEndRes',
+	}
+
+	for i,val in enumerate(headers):
+		headers[i] = headerConvert[val]
+	headers.extend(['AlnChr','AlnStart','AlnEnd','AlnStrand','AlnSkipLeft','AlnSkipRight','ExtStart','ExtEnd','ExtLig'])
 
 	pdFrame = pd.DataFrame(readInfos, index=readIDs, columns=headers)
 

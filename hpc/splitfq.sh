@@ -22,7 +22,7 @@ awk \
 	(FNR == 1) {
 		++FILENUM }
 	((NR) % 4 == 1)	{
-		READID = "IN:"FILENUM";RD:"READNUM;
+		READID = "Fl.Id:"FILENUM";Rd.Id:"READNUM;
 		print ">"READID > CUROUT
 		print ">"READID > ALTOUT;
 	        ++READNUM }
