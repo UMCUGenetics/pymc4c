@@ -1,18 +1,20 @@
 set -e
 
+export DIR_AMIN=/hpc/cog_bioinf/ridder/users/aallahyar/
+
 # Run specific, should not be hard coded (TODO)
 export EXPNAME='LVR-HS2-96x'
 export FILE_FASTQ='/home/cog/rstraver/Workspace/pymc4c_hpc/data/NPS_Files/NPS_LVR-HS2-96x_--000010--_Best.fastq'
 #export FILE_REF='/hpc/cog_bioinf/data/aallahyar/Dataset/Genome_Assembly/Human/hg19/chrAll.fa'
-export FILE_REF='/hpc/cog_bioinf/data/aallahyar/Dataset/Genome_Assembly/Mus_Musculus/mm9/chrAll.fa'
+export FILE_REF=$DIR_AMIN/Dataset/Genome_Assembly/Mus_Musculus/mm9/chrAll.fa
 
 # Where the tool/scripts are located
 export DIR_TOOL="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MC4CTOOL=$DIR_TOOL/mc4c.py
 
 # External tools used in the pipeline
-export BOWTIE=/hpc/cog_bioinf/data/aallahyar/My_Works/Useful_Sample_Codes/Bowtie2/bowtie2-2.2.6/bowtie2
-export BWA=/hpc/cog_bioinf/data/aallahyar/My_Works/Useful_Sample_Codes/BWA/bwa/bwa
+export BOWTIE=$DIR_AMIN/My_Works/Useful_Sample_Codes/Bowtie2/bowtie2-2.2.6/bowtie2
+export BWA=$DIR_AMIN/My_Works/Useful_Sample_Codes/BWA/bwa/bwa
 
 # Directories for input/output
 export DIR_DATA=$DIR_TOOL/data

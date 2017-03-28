@@ -446,9 +446,9 @@ def exportToPlot(restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 			# Determine soft clipped basepairs at start and end of mapping
 			leftSkip = 0
 			rightSkip = 0
-			if read.cigartuples[0][0] = 4:
+			if read.cigartuples[0][0] == 4:
 				leftSkip = read.cigartuples[0][1]
-			if read.cigartuples[-1][0] = 4:
+			if read.cigartuples[-1][0] == 4:
 				rightSkip = read.cigartuples[-1][1]
 
 			curInfo = [
