@@ -42,7 +42,7 @@ mkdir -p $DIR_WORKSPACE $DIR_LOG
 
 # Local: Determine amount of reads in the original fastq file
 FASTQ_NL=`wc -l $FILE_FASTQ | tail -n 1 |  awk '{print $1}'`
-READSPERFILE=20
+READSPERFILE=25000
 export LINESPERFILE=$(($READSPERFILE*4))
 export NUM_TASKS=$((($FASTQ_NL+$LINESPERFILE-1)/$LINESPERFILE))
 
