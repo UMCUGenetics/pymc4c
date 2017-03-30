@@ -22,9 +22,9 @@ def loadIni(iniFile):
 	settings=dict()
 	with open(iniFile,'r') as iniFile:
 		for line in iniFile:
-			if len(line) == 0:
-				continue
 			splitLine = line.split()
+			if len(splitLine) <= 1:
+				continue
 			settings[splitLine[0]] = [x for x in splitLine[1:] if x != '']
 
 	# Integer lists
