@@ -1,16 +1,12 @@
 #$ -l h_rt=00:30:00
 #$ -l h_vmem=1G
 
+echo "Source: [$FILE_OUT]"
+echo "Output: [$FILE_FASTQ]"
+echo "Split size: [$LINESPERFILE] lines"
 
-#BASEDIR=/home/cog/rstraver/Workspace/pymc4c_hpc
-#EXPNAME='NPC-PCDHa11-NP'
-
-OUTFASTQ=$FILE_OUT #$BASEDIR/data/splitbowq_${EXPNAME}
-#INFASTQS=/hpc/cog_bioinf/data/aallahyar/My_Works/4C_PacBio/62_Running_ThePipeline_ForAllExperiments/NPS_Files/NPS_${EXPNAME}_--000009--_Best.fastq
-IDMATCH=$OUTFASTQ.idmatch
 
 awk \
-	-v IDMATCH="$IDMATCH" \
 	-v OUTFASTQ="$FILE_OUT" \
 	-v LINESPERFILE="$LINESPERFILE" \
 	'
@@ -34,5 +30,4 @@ awk \
 		++C;
 		CUROUT = OUTFASTQ"_"C".block.fa"
 		ALTOUT = OUTFASTQ"_"C".block.fq" }
-	END { print C }' \
-	                $FILE_FASTQ
+	' $FILE_FASTQ
