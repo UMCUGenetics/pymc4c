@@ -53,7 +53,7 @@ HOLD_ID=`qsub $QSUBVARS $DIR_MC4C/sge_scripts/splitfq.sh | awk '{print $3}'`
 HOLD_ID_LIST=$HOLD_ID_LIST"splitfq:$HOLD_ID;"
 
 # Array: Map primers to reads
-HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID -t 1:$NUM_TASKS $DIR_MC4C/sge_scripts/bowtie.sh | awk '{print $3}' | cut -f1 -d.`
+#HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID -t 1:$NUM_TASKS $DIR_MC4C/sge_scripts/bowtie.sh | awk '{print $3}' | cut -f1 -d.`
 #HOLD_ID_LIST=$HOLD_ID_LIST"bowtie:$HOLD_ID;"
 
 # Array: Split reads by primers
