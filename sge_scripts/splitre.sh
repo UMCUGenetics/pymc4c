@@ -8,6 +8,6 @@ fi
 
 python $MC4CTOOL \
 	splitreads \
-	$FILE_DATAINFO \
+	$FILE_INI \
 	${FILE_OUT}_$SGE_TASK_ID.$FILE_SOURCE.fq \
 	${FILE_OUT}_$SGE_TASK_ID.splitre.fq
