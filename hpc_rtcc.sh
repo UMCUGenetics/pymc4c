@@ -1,6 +1,9 @@
-#!/usr/bin/env bash
 
 set -e
+
+## Debug mode?
+export DEBUG_MODE="set -o xtrace"
+$DEBUG_MODE
 
 # Run specific
 export FILE_INI=`realpath $1`

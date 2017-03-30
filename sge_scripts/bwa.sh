@@ -1,7 +1,7 @@
 #$ -l h_rt=08:00:00
 #$ -l h_vmem=32G
-
 #$ -pe threaded 12
+$DEBUG_MODE
 
 $BWA bwasw \
 	-b 5 \

@@ -1,6 +1,7 @@
 #$ -l h_rt=00:30:00
 #$ -l h_vmem=1G
 #$ -pe threaded 12
+$DEBUG_MODE
 
 BASECALL=/hpc/cog_bioinf/kloosterman/users/wkloosterman/tools/albacore/albacore_venv/bin/read_fast5_basecaller.py
 FILE_INPUT=/hpc/cog_bioinf/kloosterman/users/mroosmalen/scripts/NAP/testing/input

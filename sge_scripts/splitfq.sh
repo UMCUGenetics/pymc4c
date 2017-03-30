@@ -1,5 +1,6 @@
 #$ -l h_rt=00:30:00
 #$ -l h_vmem=1G
+$DEBUG_MODE
 
 echo "Source: [$FILE_OUT]"
 echo "Output: [$FILE_FASTQ]"

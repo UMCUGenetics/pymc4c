@@ -1,5 +1,6 @@
 #$ -l h_rt=00:30:00
 #$ -l h_vmem=1G
+$DEBUG_MODE
 
 FILELIST=""
 for INDEX in `seq $NUM_TASKS`;

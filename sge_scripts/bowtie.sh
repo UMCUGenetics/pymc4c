@@ -1,7 +1,7 @@
 #$ -l h_rt=08:00:00
 #$ -l h_vmem=8G
-
 #$ -pe threaded 2
+$DEBUG_MODE
 
 FILE_REF=${FILE_OUT}_$SGE_TASK_ID.block.fa
 FILE_IDX=${FILE_OUT}_$SGE_TASK_ID.block
