@@ -104,5 +104,7 @@ twoBitToFa
 *.bai
 *.pyc
 .idea
+.DS_Store
+.vscode/
 config_dir/
 workspace_dir/
