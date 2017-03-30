@@ -2,7 +2,7 @@
 #$ -l h_vmem=1G
 
 FILELIST=""
-for INDEX in `seq $SPLITFILESNUM`;
+for INDEX in `seq $NUM_TASKS`;
 do
 	FILELIST="$FILELIST ${FILE_OUT}_${INDEX}.splitre.fq"
 done
