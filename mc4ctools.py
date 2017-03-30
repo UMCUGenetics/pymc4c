@@ -56,7 +56,7 @@ def seqToFasta(sequence,baseId):
 	targetLen = 50
 	split = splitStringTo(sequence,maxLen=targetLen)
 	if len(split) > 1:
-	 	while len(split[0]) != len(split[-1]):
+		while len(split[0]) != len(split[-1]):
 			popper = split.pop(-1)
 		split[-1] = split[-1][:targetLen/2]+popper
 	outString = ''
