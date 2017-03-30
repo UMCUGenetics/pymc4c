@@ -17,8 +17,8 @@ awk \
 	BEGIN {
 		C=1;
 		READNUM = 1;
-		CUROUT = OUTFASTQ"_"C".fa";
-		ALTOUT = OUTFASTQ"_"C".fq" }
+		CUROUT = OUTFASTQ"_"C".block.fa";
+		ALTOUT = OUTFASTQ"_"C".block.fq" }
 	(FNR == 1) {
 		++FILENUM }
 	((NR) % 4 == 1)	{
@@ -32,7 +32,7 @@ awk \
 		print $0 > ALTOUT }
 	((NR % LINESPERFILE) == 0) {
 		++C;
-		CUROUT = OUTFASTQ"_"C".fa"
-		ALTOUT = OUTFASTQ"_"C".fq" }
+		CUROUT = OUTFASTQ"_"C".block.fa"
+		ALTOUT = OUTFASTQ"_"C".block.fq" }
 	END { print C }' \
 	                $FILE_FASTQ
