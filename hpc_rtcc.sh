@@ -1,32 +1,29 @@
 #!/usr/bin/env bash
 
-set -e # Exit immediately if a command within the bash script exits with a non-zero status.
+set -e
 
 export DIR_AMIN=/hpc/cog_bioinf/ridder/users/aallahyar/
 
-# Run specific, should not be hard coded (TODO)
-export EXPNAME='LVR-HS2-96x'
-export FILE_FASTQ='/home/cog/rstraver/Workspace/pymc4c_hpc/data/NPS_Files/NPS_LVR-HS2-96x_--000010--_Best.fastq'
-#export FILE_REF='/hpc/cog_bioinf/data/aallahyar/Dataset/Genome_Assembly/Human/hg19/chrAll.fa'
-export FILE_REF=$DIR_AMIN/Dataset/Genome_Assembly/Mus_Musculus/mm9/chrAll.fa
-
-# Where the tool/scripts are located
-export DIR_TOOL="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-export MC4CTOOL=$DIR_TOOL/mc4c.py
+# Run specific
+export FILE_INI=`realpath $1`
+export DIR_WORKSPACE=`realpath $2`
+mkdir -p $DIR_WORKSPACE
 
 # External tools used in the pipeline
 export BOWTIE=$DIR_AMIN/My_Works/Useful_Sample_Codes/Bowtie2/bowtie2-2.2.6/bowtie2
 export BWA=$DIR_AMIN/My_Works/Useful_Sample_Codes/BWA/bwa/bwa
 
-# Directories for input/output
-export DIR_DATA=$DIR_TOOL/data
-export DIR_LOG=$DIR_DATA/log
-export DIR_NODES=$DIR_TOOL/hpc
+# Where the tool/scripts are located
+export DIR_MC4C="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+export MC4CTOOL=$DIR_MC4C/mc4c.py
 
-# File naming for job input.ouput
-export FILE_OUT=$DIR_DATA/$EXPNAME
-export FILE_PRIMERFA=$DIR_TOOL/data/primer_${EXPNAME}.fa
-export FILE_DATAINFO=$DIR_DATA/ini63/${EXPNAME}.tsv
+# Directories for input/output
+
+EXP_ID=`awk '/exp_id/{print $2}' $1`
+export DIR_OUT=$DIR_WORKSPACE/$EXP_ID
+export FILE_OUT=$DIR_OUT/$EXP_ID
+export FILE_PRIMERFA=${FILE_OUT}_primer.fa
+export DIR_LOG=$DIR_OUT/log
 
 # Setup for submission variables
 QSUBVARS="-V -e $DIR_LOG -o $DIR_LOG"
@@ -36,13 +33,13 @@ HOLD_ID=-1
 module load python
 
 # Local: Make the primer fa
-python $MC4CTOOL makeprimerfa $FILE_DATAINFO $FILE_PRIMERFA
+#python $MC4CTOOL makeprimerfa $FILE_INI $FILE_PRIMERFA
 
 # Local: Determine amount of reads in the original fastq file
-FASTQWCL=`wc -l $FILE_FASTQ | tail -n 1 |  awk '{print $1}'`
-READSPERFILE=16384
+FASTQ_NL=`wc -l $FILE_FASTQ | tail -n 1 |  awk '{print $1}'`
+READSPERFILE=20
 export LINESPERFILE=$(($READSPERFILE*4))
-export SPLITFILESNUM=$((($FASTQWCL+$LINESPERFILE-1)/$LINESPERFILE))
+export NUM_TASKS=$((($FASTQ_NL+$LINESPERFILE-1)/$LINESPERFILE))
 
 HOLD_ID_LIST=">"
 
@@ -51,27 +48,28 @@ HOLD_ID_LIST=">"
 
 # Single: Split fastq data over several even sized files,
 # 	rename reads to unique numbers
-HOLD_ID=`qsub $QSUBVARS $DIR_NODES/splitfq.sh | awk '{print $3}'`
+HOLD_ID=`qsub $QSUBVARS $DIR_MC4C/sge_scripts/splitfq.sh | awk '{print $3}'`
 HOLD_ID_LIST=$HOLD_ID_LIST"splitfq:$HOLD_ID;"
 
 # Array: Map primers to reads
-HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID -t 1:$SPLITFILESNUM $DIR_NODES/bowtie.sh | awk '{print $3}' | cut -f1 -d.`
-HOLD_ID_LIST=$HOLD_ID_LIST"bowtie:$HOLD_ID;"
+HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID -t 1:$NUM_TASKS $DIR_MC4C/sge_scripts/bowtie.sh | awk '{print $3}' | cut -f1 -d.`
+#HOLD_ID_LIST=$HOLD_ID_LIST"bowtie:$HOLD_ID;"
 
 # Array: Split reads by primers
-HOLD_ID=`qsub $QSUBVARS -hold_jid_ad $HOLD_ID -t 1:$SPLITFILESNUM $DIR_NODES/splitpr.sh | awk '{print $3}' | cut -f1 -d.`
-HOLD_ID_LIST=$HOLD_ID_LIST"splitpr:$HOLD_ID;"
+#HOLD_ID=`qsub $QSUBVARS -hold_jid_ad $HOLD_ID -t 1:$NUM_TASKS $DIR_MC4C/sge_scripts/splitpr.sh | awk '{print $3}' | cut -f1 -d.`
+#HOLD_ID_LIST=$HOLD_ID_LIST"splitpr:$HOLD_ID;"
 
 # Array: Split reads by restriction sites
-HOLD_ID=`qsub $QSUBVARS -hold_jid_ad $HOLD_ID -t 1:$SPLITFILESNUM $DIR_NODES/splitre.sh | awk '{print $3}' | cut -f1 -d.`
+export FILE_SOURCE=block
+HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID -t 1:$NUM_TASKS $DIR_MC4C/sge_scripts/splitre.sh | awk '{print $3}' | cut -f1 -d.`
 HOLD_ID_LIST=$HOLD_ID_LIST"splitre:$HOLD_ID;"
 
 # Single: Merge split reads to one zipped file
-HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID $DIR_NODES/mergere.sh | awk '{print $3}'`
+HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID $DIR_MC4C/sge_scripts/mergere.sh | awk '{print $3}'`
 HOLD_ID_LIST=$HOLD_ID_LIST"mergere:$HOLD_ID;"
 
 # Single: Map split reads to reference genome
-HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID $DIR_NODES/bwa.sh | awk '{print $3}'`
+HOLD_ID=`qsub $QSUBVARS -hold_jid $HOLD_ID $DIR_MC4C/sge_scripts/bwa.sh | awk '{print $3}'`
 HOLD_ID_LIST=$HOLD_ID_LIST"bwa:$HOLD_ID;"
 
 echo Jobs submitted: $HOLD_ID_LIST

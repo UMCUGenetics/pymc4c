@@ -104,3 +104,5 @@ twoBitToFa
 *.bai
 *.pyc
 .idea
+config_dir/
+workspace_dir/
