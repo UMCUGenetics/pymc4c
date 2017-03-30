@@ -2,14 +2,12 @@
 
 set -e
 
-export DIR_AMIN=/hpc/cog_bioinf/ridder/users/aallahyar/
-
 # Run specific
 export FILE_INI=`realpath $1`
 export DIR_WORKSPACE=`realpath $2`
-mkdir -p $DIR_WORKSPACE
 
 # External tools used in the pipeline
+export DIR_AMIN=/hpc/cog_bioinf/ridder/users/aallahyar/
 export BOWTIE=$DIR_AMIN/My_Works/Useful_Sample_Codes/Bowtie2/bowtie2-2.2.6/bowtie2
 export BWA=$DIR_AMIN/My_Works/Useful_Sample_Codes/BWA/bwa/bwa
 
@@ -19,9 +17,9 @@ export MC4CTOOL=$DIR_MC4C/mc4c.py
 
 # Directories for input/output
 
-EXP_ID=`awk '/^exp_id/{print $2}' $1`
-SOURCE_FASTQ=`awk '/^src_fastq/{$1="";print $0}' $1`
-FILE_FASTQ=`ls $SOURCE_FASTQ`
+EXP_ID=`awk '/^exp_id/{print $2}' $FILE_INI`
+SOURCE_FASTQ=`awk '/^src_fastq/{$1="";print $0}' $FILE_INI`
+export FILE_FASTQ=`ls $SOURCE_FASTQ`
 export DIR_OUT=$DIR_WORKSPACE/$EXP_ID
 export FILE_OUT=$DIR_OUT/$EXP_ID
 export FILE_PRIMERFA=${FILE_OUT}_primer.fa
@@ -31,8 +29,9 @@ export DIR_LOG=$DIR_OUT/log
 QSUBVARS="-V -e $DIR_LOG -o $DIR_LOG"
 HOLD_ID=-1
 
-# Load necessary modules for analyses
+# Initialization
 module load python
+mkdir -p $DIR_WORKSPACE $DIR_LOG
 
 # Local: Make the primer fa
 #python $MC4CTOOL makeprimerfa $FILE_INI $FILE_PRIMERFA
@@ -43,7 +42,7 @@ READSPERFILE=20
 export LINESPERFILE=$(($READSPERFILE*4))
 export NUM_TASKS=$((($FASTQ_NL+$LINESPERFILE-1)/$LINESPERFILE))
 
-HOLD_ID_LIST=">"
+HOLD_ID_LIST=""
 
 #echo $(($FASTQWCL/4)) Reads found in $FILE_FASTQ
 #echo Becomes $SPLITFILESNUM files
