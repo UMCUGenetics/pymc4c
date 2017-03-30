@@ -17,9 +17,10 @@ export MC4CTOOL=$DIR_MC4C/mc4c.py
 
 # Directories for input/output
 
-EXP_ID=`awk '/^exp_id/{print $2}' $FILE_INI`
 SOURCE_FASTQ=`awk '/^src_fastq/{$1="";print $0}' $FILE_INI`
 export FILE_FASTQ=`ls $SOURCE_FASTQ`
+export EXP_ID=`awk '/^exp_id/{print $2}' $FILE_INI`
+export FILE_REF=`awk '/^ref_path/{print $2}' $FILE_INI`
 export DIR_OUT=$DIR_WORKSPACE/$EXP_ID
 export FILE_OUT=$DIR_OUT/$EXP_ID
 export FILE_PRIMERFA=${FILE_OUT}_primer.fa
