@@ -1,7 +1,9 @@
 #$ -l h_rt=05:00:00
 #$ -l h_vmem=10G
 #$ -pe threaded 6
+#$ -cwd
 
+cd $SGE_O_WORKDIR
 BASECALL=/hpc/cog_bioinf/kloosterman/users/wkloosterman/tools/albacore/albacore_venv/bin/read_fast5_basecaller.py
 FILE_INPUT=`realpath $1`
 FILE_OUT=`realpath $2`
