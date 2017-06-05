@@ -1,9 +1,7 @@
 import argparse
 import sys
-import os
 
 import log
-import prep
 import numpy as np
 import mc4ctools as mc
 
