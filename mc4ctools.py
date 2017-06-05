@@ -8,7 +8,6 @@ import pandas as pd
 
 import re
 import pysam
-import parse
 import collections
 
 import bisect as bs
@@ -475,8 +474,8 @@ def exportToPlot(restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 				and prevRead.is_reverse == read.is_reverse \
 				and result[0] <= prevResult[1] and result[1] >= prevResult[0] \
 				and curID == prevID:
-					 curStack.append((read,result))
-					 curInfo[-1] = False
+					curStack.append((read,result))
+					curInfo[-1] = False
 			else:
 				if curStack != []:
 					for i in range(min([x[1][0] for x in curStack]), max([x[1][1] for x in curStack])+1):
