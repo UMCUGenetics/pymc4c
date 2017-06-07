@@ -15,7 +15,7 @@ To run the whole pipeline several tools from third parties are required. The fol
 ## Preparing to run
 
 ### Base calling
-Refer to [wiki](https://github.com/UMCUGenetics/pymc4c/wiki/Converting-raw-signals-(i.e.-Squiggle)-to-FAST5) to convert the squiggle signals to FAST5 reads.
+Please refer to the [wiki](https://github.com/UMCUGenetics/pymc4c/wiki/Converting-raw-signals-(i.e.-Squiggle)-to-FAST5) to convert raw signals to FAST5 reads.
 
 ### Config file
 You need to have a config file that contains experiment specific details (e.g. primer sequence). You can find an example of such a file in "config_dir" folder.
@@ -29,7 +29,10 @@ bwa index reference.fa
 ### Find restriction sites
 
 ```
-python mc4c.py settings.ini reference.fa refstr.np
+python mc4c.py \
+	settings.ini \
+	reference.fa \
+	refstr.np
 ```
 
 ### Make primer fasta (4C Data)
@@ -43,7 +46,7 @@ python mc4c.py makeprimerfa settings.ini primer.fa
 
 ### Rename reads / Combine and split data
 Renames reads and splits data for HPC processing.
-> Variable names in this step can be confusing as this script is written for use in a pipeline.
+> Note: Variable names in this step can be confusing as this script is written for use in a pipeline.
 
 
 First define the data files from the samples to work with. 
@@ -113,7 +116,7 @@ python mc4c.py cleavereads \
 
 ### Split reads by restriction sites
 Sometimes circles appear to attach to eachother, creating a longer read with multiple circles. Therefore, reads should be cut by the restriction sites they were most likely cut at originally. 
-> The data used for input here depends on whether or not reads were previously split by mapped primers.
+> Note: The data used for input here depends on whether or not reads were previously split by mapped primers.
 
 ```
 SOURCE=block # Data not split by primers
@@ -133,6 +136,7 @@ python mc4c.py splitreads \
 
 ### Merge data
 In case data was split previously, combine the data into a single gzipped fq file.
+> Note: While not necessary if using a single file, you may want to gzip your data anyway.
 ```
 cat *.splitre.fq | gzip > sample.splitre.fq.gz
 ```
@@ -153,21 +157,9 @@ bwa bwasw \
 	sample.splitre.fq.gz
 ```
 
-<<<<<<< HEAD
 ### Export results for plot tools
 The mapped data now contains the region any sub-sequence mapped to, while the circles it originated from is described in the read name.
 
 ```
 python mc4c.py export sample.bwa.sam refstr.np sample.np
 ```
-=======
-#### 1. Create a config file
-You need to have a config file that contains experiment's detail (e.g. primer sequence). You can find an example of such a file in "config_dir" folder.
-
-#### 2. Make a fasta file out of primer sequences
-Example:
-
-```
-	mc4c.py makeprimerfa ./config_dir/CTp-VpID.cfg ./workspace_dir/Cleave_Reads/PRM_ZZZ-TMP.fasta
-```
->>>>>>> 3dfee8de798f202e1bfe04c3e74e7df1b9401960
