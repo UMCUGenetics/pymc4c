@@ -1,4 +1,3 @@
-import sys
 import csv
 import os.path as path
 

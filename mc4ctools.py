@@ -30,8 +30,6 @@ def loadIni(iniFile):
 	for key in ['prm_start','prm_end','vp_start','vp_end','win_start','win_end']:
 		settings[key]=[int(x) for x in settings[key]]
 
-	# Temporary solution to error in naming
-	settings['prm_seq'] = settings['pr_seq']
 
 	# Check lists that should be of equal length
 	linked=[
@@ -79,7 +77,7 @@ def getPrimerSeqs(dataInfo):
 				dataInfo['prm_start'][i]-300,
 				dataInfo['prm_end'][i]).upper()
 		leftIndex = leftSeq.rfind(dataInfo['re_seq'][0])
-		leftPrimerSeq = Seq(leftSeq[leftIndex:]).reverse_complement()
+		leftPrimerSeq = Seq(leftSeq[leftIndex:]).reverse_complement().tostring()
 
 		rightSeq = prep.getFastaSequence(
 				dataInfo['genome_build'][0],
