@@ -56,7 +56,7 @@ def main():
 	descFqFile = 'Fastq file containing actual data from sequencing'
 
 	parser = argparse.ArgumentParser(
-		description="TODO: Replace this description")
+		description="MC4C pipeline for processing multi-contact data")
 	subparsers = parser.add_subparsers()
 
 	#
@@ -78,7 +78,7 @@ def main():
 		help=descIniFile)
 	parser_clvprm.add_argument('bamfile',
 		type=str,
-		help='Bam file after makeprimerfa results were mapped by bowtie2')
+		help='Bam file that is created after makeprimerfa results were mapped by bowtie2')
 	parser_clvprm.add_argument('fastqfile',
 		type=str,
 		help=descFqFile)
@@ -103,16 +103,16 @@ def main():
 
 	#
 	parser_refrest = subparsers.add_parser('refrestr',
-		description='Determine restriction site locations on reference by their sequences')
+		description='Determine restriction site coordinates on reference by their sequences')
 	parser_refrest.add_argument('inifile',
 		type=str,
 		help=descIniFile)
 	parser_refrest.add_argument('fastafile',
 		type=str,
-		help='Reference fasta file you map data to (eg Hg19)')
+		help='Fasta file of reference genome containing all chromosomes (eg hg19)')
 	parser_refrest.add_argument('restfile',
 		type=str,
-		help='Numpy compressed file containing restriction site locations')
+		help='Numpy compressed file containing restriction site coordinates')
 	parser_refrest.set_defaults(func=findRefRestSites)
 
 	#
@@ -120,13 +120,13 @@ def main():
 		description='Combine and export results for interactive plotting')
 	parser_export.add_argument('bamfile',
 		type=str,
-		help='Bam file after mapping previously split fastq data to reference genome (eg Hg19) using BWA')
+		help='Bam file after mapping previously split fastq data to reference genome (eg hg19) using BWA')
 	parser_export.add_argument('restfile',
 		type=str,
-		help='Numpy compressed file containing restriction site locations')
+		help='Numpy compressed file containing restriction site coordinates')
 	parser_export.add_argument('plotfile',
 		type=str,
-		help='Numpy compressed file containing restriction site locations')
+		help='Numpy compressed file containing restriction site coordinates')
 	parser_export.set_defaults(func=exportToPlot)
 
 	args = parser.parse_args(sys.argv[1:])
@@ -134,4 +134,5 @@ def main():
 	args.func(args)
 
 if __name__ == '__main__':
+
 	main()

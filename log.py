@@ -1,13 +1,12 @@
-import time
 import getpass
-import datetime
+from datetime import datetime
 import socket
 
 
 def getRuntime():
 	runtime = dict()
 	runtime['version']=getVersion()
-	runtime['datetime']=curTime
+	runtime['datetime']=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 	runtime['hostname']=socket.gethostname()
 	runtime['username']=getpass.getuser()
 	return runtime
@@ -16,6 +15,7 @@ def getRuntime():
 def getVersion():
 	version = 'unknown'
 	try:
+		import subprocess
 		version = subprocess.check_output(["git", "describe", "--always"]).split()[0]
 	except:
 		pass
