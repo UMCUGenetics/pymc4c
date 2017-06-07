@@ -153,9 +153,21 @@ bwa bwasw \
 	sample.splitre.fq.gz
 ```
 
+<<<<<<< HEAD
 ### Export results for plot tools
 The mapped data now contains the region any sub-sequence mapped to, while the circles it originated from is described in the read name.
 
 ```
 python mc4c.py export sample.bwa.sam refstr.np sample.np
 ```
+=======
+#### 1. Create a config file
+You need to have a config file that contains experiment's detail (e.g. primer sequence). You can find an example of such a file in "config_dir" folder.
+
+#### 2. Make a fasta file out of primer sequences
+Example:
+
+```
+	mc4c.py makeprimerfa ./config_dir/CTp-VpID.cfg ./workspace_dir/Cleave_Reads/PRM_ZZZ-TMP.fasta
+```
+>>>>>>> 3dfee8de798f202e1bfe04c3e74e7df1b9401960
