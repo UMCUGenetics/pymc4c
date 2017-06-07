@@ -1,6 +1,7 @@
 # pymc4c
 A python based approach to processing MC4C data
 
+
 ## Requirements
 
 ### External Tools:
@@ -9,10 +10,10 @@ To run the whole pipeline several tools from third parties are required. The fol
 - bowtie2 (2.2.6)
 
 ### External Data:
-- A reference genome for the species you are working with
+- A reference genome
 
 
-## Preparing to run
+## Preparing
 
 ### Base calling
 Please refer to the [wiki](https://github.com/UMCUGenetics/pymc4c/wiki/Converting-raw-signals-(i.e.-Squiggle)-to-FAST5) to convert raw signals to FAST5 reads.
@@ -26,7 +27,18 @@ Ensure the reference genome, `reference.fa`, is prepared for the mapper you appl
 bwa index reference.fa
 ```
 
+### Create primer fasta (4C Data)
+Sometimes molecules attach to eachother, creating a single molecule that originates from multiple, unrelated, circles. To split these, reads are split where primer sequences map on the read. To enable mapping primers to other data, the primers need to be in fasta format, as created in this step.
+
+```
+python mc4c.py makeprimerfa \
+	settings.ini \
+	primer.fa
+```
+
 ### Find restriction sites
+The export function, described later, uses the restriction sites identified in the reference genome to define regions. This enables determining the amount of circles that overlapped such regions.
+This step obtains the genomic positions where restriction sites are found and stores them for later use.
 
 ```
 python mc4c.py \
@@ -35,12 +47,6 @@ python mc4c.py \
 	refstr.np
 ```
 
-### Make primer fasta (4C Data)
-Sometimes molecules attach to eachother, creating a single molecule that originates from multiple, unrelated, circles. To split these, reads are split where primer sequences map on the read. To enable mapping primers to other data, the primers need to be in fasta format, as created in this step.
-
-```
-python mc4c.py makeprimerfa settings.ini primer.fa
-```
 
 ## Running
 
@@ -117,6 +123,7 @@ python mc4c.py cleavereads \
 ### Split reads by restriction sites
 Sometimes circles appear to attach to eachother, creating a longer read with multiple circles. 
 Therefore, reads should be cut at the restriction sites they were most likely cut at originally. 
+
 > Note: The data used for input here depends on whether or not reads were previously split by mapped primers.
 
 ```
@@ -138,12 +145,13 @@ python mc4c.py splitreads \
 ### Merge data
 In case data was split previously, combine the data into a single gzipped fq file.
 > Note: While not necessary if using a single file, you may want to gzip your data anyway.
+
 ```
 cat *.splitre.fq | gzip > sample.splitre.fq.gz
 ```
 
 ### Map data to reference genome
-Now most pieces of sequence that may have been separate before forming a circle together have been split into separate sequences, these sequences can be mapped to the reference genome. While any mapper should work, BWA works well for this purpose.
+Now most pieces of sequence that may have been separate before forming a circle together have been split into separate sequences, these sequences can be mapped to the reference genome. While any mapper should work, `BWA` works well for this purpose.
 
 ```
 bwa bwasw \
@@ -159,8 +167,11 @@ bwa bwasw \
 ```
 
 ### Export results for plot tools
-The mapped data now contains the region any sub-sequence mapped to, while the circles it originated from is described in the read name.
+The mapped data now contains the region any sub-sequence mapped to, while the circles it originated from is described in the read name. Some additional filtering is done and the data is prepared for plotting using the `export` function.
 
 ```
-python mc4c.py export sample.bwa.sam refstr.np sample.np
+python mc4c.py export \
+	sample.bwa.sam \
+	refstr.np \
+	sample.np
 ```
