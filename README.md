@@ -115,7 +115,8 @@ python mc4c.py cleavereads \
 ```
 
 ### Split reads by restriction sites
-Sometimes circles appear to attach to eachother, creating a longer read with multiple circles. Therefore, reads should be cut by the restriction sites they were most likely cut at originally. 
+Sometimes circles appear to attach to eachother, creating a longer read with multiple circles. 
+Therefore, reads should be cut at the restriction sites they were most likely cut at originally. 
 > Note: The data used for input here depends on whether or not reads were previously split by mapped primers.
 
 ```
@@ -142,7 +143,7 @@ cat *.splitre.fq | gzip > sample.splitre.fq.gz
 ```
 
 ### Map data to reference genome
-Now most pieces of sequence that may have been seperate before forming a circle together have been split into separate sequences, these sequences can be mapped to the reference genome. While any mapper should work, BWA works well for this purpose.
+Now most pieces of sequence that may have been separate before forming a circle together have been split into separate sequences, these sequences can be mapped to the reference genome. While any mapper should work, BWA works well for this purpose.
 
 ```
 bwa bwasw \
