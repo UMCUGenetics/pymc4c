@@ -151,7 +151,7 @@ cat *.splitre.fq | gzip > sample.splitre.fq.gz
 ```
 
 ### Map data to reference genome
-Now most pieces of sequence that may have been separate before forming a circle together have been split into separate sequences, these sequences can be mapped to the reference genome. While any mapper should work, `BWA` works well for this purpose.
+Now most pieces of sequence that may have been separate before forming a circle together have been split into separate sequences, these sequences can be mapped to the reference genome. While any mapper should work, BWA works well for this purpose.
 
 ```
 bwa bwasw \
