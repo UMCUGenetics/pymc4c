@@ -258,7 +258,6 @@ def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='Cr'):
 	readId=-1
 	readName=''
 	readSeq=''
-	cutId = 1
 	with open(inFile,'r') as fqFile, open(outFile,'w') as dumpFile:
 
 		# Indexing is lead by cutlist, contains less than or equal to inFile
@@ -275,6 +274,7 @@ def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='Cr'):
 
 			# Both lists are now either aligned or inFile is ahead
 			if readId == cut[0]:
+				cutId = 1
 
 				# No cuts can be made, take whole sequence instead
 				if cut[1] == []:
@@ -320,10 +320,10 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='Fr'):
 	#restSeqs.sort(key=lambda item: (-len(item), item))
 	reSeqs='|'.join(restSeqs)
 	cutList = []
-	cutId = 1
 
 	with open(inFile,'r') as fqFile, open(outFile,'w') as dumpFile:
 		for read in fqFile:
+			cutId = 1
 			readName=read.rstrip() #faFile.next().rstrip()
 			readSeq=fqFile.next().rstrip()
 			readPlus=fqFile.next().rstrip()
@@ -493,6 +493,8 @@ def exportToPlot(restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 	# Once more to empty the stack
 	for i in range(min([x[1][0] for x in curStack]), max([x[1][1] for x in curStack])+1):
 		restrefs[prevRead.reference_name][i].append((prevID,prevRead.is_reverse))
+
+	print curSplit
 
 	headers = [x[0] for x in curSplit]
 	headerConvert = {

@@ -19,9 +19,9 @@ def cleaveReads(args):
 	primerLens = [len(x) for x in settings['prm_seq']]
 	primers = ['']
 	primers.extend(settings['prm_seq'])
-	print primers
+	#print primers
 	prmCuts = mc.combinePrimers(args.bamfile,primerLens)
-	print prmCuts[:10]
+	#print prmCuts[:10]
 	mc.applyCuts(args.fastqfile,args.outfile,prmCuts,primers)
 
 
@@ -44,10 +44,8 @@ def exportToPlot(args):
 	restrefs=np.load(args.restfile)['restrsites'].item()
 	print 'Finished loading, moving on'
 	restRefs,byReads,pdFrame = mc.exportToPlot(restrefs,args.bamfile)
-	print pdFrame
+	#print pdFrame
 	np.savez_compressed(args.plotfile,
-		byregion=restRefs,
-		byread=dict(byReads),
 		pdframe=pdFrame,
 		pdcolumns=pdFrame.columns,
 		pdindex=pdFrame.index)
