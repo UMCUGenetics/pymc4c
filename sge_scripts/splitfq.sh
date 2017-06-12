@@ -2,8 +2,8 @@
 #$ -l h_vmem=1G
 $DEBUG_MODE
 
-echo "Source: [$FILE_OUT]"
-echo "Output: [$FILE_FASTQ]"
+echo "Source: [$FILE_FASTQ]"
+echo "Output: [$FILE_OUT]"
 echo "Split size: [$LINESPERFILE] lines"
 
 

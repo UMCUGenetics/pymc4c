@@ -33,7 +33,7 @@ Sometimes molecules attach to eachother, creating a single molecule that origina
 ```
 python mc4c.py makeprimerfa \
 	settings.ini \
-	primer.fa
+	primers.fa
 ```
 
 ### Find restriction sites
@@ -41,10 +41,10 @@ The export function, described later, uses the restriction sites identified in t
 This step obtains the genomic positions where restriction sites are found and stores them for later use.
 
 ```
-python mc4c.py \
+python mc4c.py refrestr \
 	settings.ini \
 	reference.fa \
-	refstr.np
+	refstr.npz
 ```
 
 
@@ -52,19 +52,17 @@ python mc4c.py \
 
 ### Rename reads / Combine and split data
 Renames reads and splits data for HPC processing.
-> Note: Variable names in this step can be confusing as this script is written for use in a pipeline.
-
 
 First define the data files from the samples to work with. 
 
 ```
-export FILE_OUT=`ls path/to/*.fq`  
+export FILE_FASTQ=`ls path/to/*.fq`  
 ```
 
 Next define where the output files are to be put. The specified path is extended with `_#.block.fa` and `_#.block.fq`, for output fasta and fastq formats respectively, where # is replaced by the index of the datablock.
 
 ```
-export FILE_FASTQ="path/to/basename"  
+export FILE_OUT="path/to/basename"  
 ```
 
 The last variable specifies the amount of reads per file. If you desire a single file, fill in a huge number (> number of reads in total). This is what causes the datablock numbering in the file name for the previous variable definition.
@@ -115,7 +113,7 @@ As the primers are mapped to the reads the reads can be cut into what were likel
 ```
 python mc4c.py cleavereads \
 	settings.ini \
-	sample_#.sam \
+	sample_#.block.sam \
 	sample_#.block.fq \
 	sample_#.splitpr.fq
 ```
@@ -172,6 +170,6 @@ The mapped data now contains the region any sub-sequence mapped to, while the ci
 ```
 python mc4c.py export \
 	sample.bwa.sam \
-	refstr.np \
+	refstr.npz \
 	sample.np
 ```

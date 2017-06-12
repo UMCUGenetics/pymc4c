@@ -82,9 +82,9 @@ def getPrimerSeqs(dataInfo):
 		rightSeq = prep.getFastaSequence(
 				dataInfo['genome_build'][0],
 				dataInfo['vp_chr'][0],
-				dataInfo['prm_start'][i]-1,
+				dataInfo['prm_start'][i],
 				dataInfo['prm_end'][i]+300).upper()
-		rightIndex = rightSeq.find(dataInfo['re_seq'][0]) + len(dataInfo['re_seq'][0]) - 1
+		rightIndex = rightSeq.find(dataInfo['re_seq'][0]) + len(dataInfo['re_seq'][0])
 		rightPrimerSeq = rightSeq[:rightIndex]
 
 		assert max(leftPrimerSeq.find(dataInfo['prm_seq'][i]),
