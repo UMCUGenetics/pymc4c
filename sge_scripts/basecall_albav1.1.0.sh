@@ -19,7 +19,7 @@ echo "Writing to: ${FILE_OUT}/${FOLDER_NAME}"
 module load python/3.4.3
 
 $BASECALL \
-		--output_format fastq
+        --output_format fastq
         --input ${FILE_INPUT}/${FOLDER_NAME}/ \
         --worker_threads 6 \
         --save_path ${FILE_OUT}/${FOLDER_NAME}/ \
