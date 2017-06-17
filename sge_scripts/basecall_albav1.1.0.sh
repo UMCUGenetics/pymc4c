@@ -1,5 +1,5 @@
 #$ -l h_rt=05:00:00
-#$ -l h_vmem=6G
+#$ -l h_vmem=15G
 #$ -pe threaded 6
 #$ -cwd
 $DEBUG_MODE
@@ -26,3 +26,5 @@ $BASECALL \
         --config ${F5_CFG}
 
 echo "Process finished at: `date`" 
+
+# Copy all files to one directory: find ./ -name '*.fast5' | xargs -I {} cp -i {} ./fast5/
