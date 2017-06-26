@@ -18,16 +18,15 @@ awk \
 		ALTOUT = OUTFASTQ"_"C".block.fq" }
 	(FNR == 1) {
 		++FILENUM }
-	((NR) % 4 == 1)	{
-		READID = "Fl.Id:"FILENUM";Rd.Id:"READNUM;
+	((FNR) % 4 == 2) {
+		READID = "Fl.Id:"FILENUM";Rd.Id:"READNUM";Rd.Ln:"length($0)
 		print ">"READID > CUROUT
 		print ">"READID > ALTOUT;
-	        ++READNUM }
-	((NR) % 4 == 2) {
+	        ++READNUM
 		print $0 > CUROUT }
-	((NR) % 4 != 1) {
+	((FNR) % 4 != 1) {
 		print $0 > ALTOUT }
-	((NR % LINESPERFILE) == 0) {
+	((FNR % LINESPERFILE) == 0) {
 		++C;
 		CUROUT = OUTFASTQ"_"C".block.fa"
 		ALTOUT = OUTFASTQ"_"C".block.fq" }

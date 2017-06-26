@@ -38,10 +38,11 @@ def findRefRestSites(args):
 
 
 def exportToPlot(args):
+	settings = mc.loadIni(args.inifile)
 	print 'Loading restrsites, this takes a while...'
 	restrefs=np.load(args.restfile)['restrsites'].item()
 	print 'Finished loading, moving on'
-	restRefs,byReads,pdFrame = mc.exportToPlot(restrefs,args.bamfile)
+	restRefs,byReads,pdFrame = mc.exportToPlot(settings,restrefs,args.bamfile)
 	#print pdFrame
 	np.savez_compressed(args.plotfile,
 		pdframe=pdFrame,
@@ -116,6 +117,9 @@ def main():
 	#
 	parser_export = subparsers.add_parser('export',
 		description='Combine and export results for interactive plotting')
+	parser_export.add_argument('inifile',
+		type=str,
+		help=descIniFile)
 	parser_export.add_argument('bamfile',
 		type=str,
 		help='Bam file after mapping previously split fastq data to reference genome (eg hg19) using BWA')

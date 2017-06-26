@@ -205,7 +205,7 @@ def findCuts(matchList):
 
 	# If the first primer points to the start, accept it
 	if matchList[0].prmFlag&(1<<4)==16:
-		cutList.append([None,matchList[0].startAln,0,matchList[0].prmType])
+		cutList.append([None,matchList[0].endAln,0,matchList[0].prmType])
 
 	# Any two subsequent primers pointing toward eachother are accepted,
 	# but ensure they are not the same primer
@@ -213,14 +213,14 @@ def findCuts(matchList):
 		if matchList[i].prmFlag&(1<<4)==0 and \
 				matchList[i+1].prmFlag&(1<<4)==16 and \
 				matchList[i].prmType != matchList[i+1].prmType:
-			cutList.append([matchList[i].endAln,matchList[i+1].startAln,matchList[i].prmType,matchList[i+1].prmType])
+			cutList.append([matchList[i].startAln,matchList[i+1].endAln,matchList[i].prmType,matchList[i+1].prmType])
 		# TODO: Check if we need to add +1 to the end position above
 		# If we want to remove reads where 2 of the same primer type are
 		# pointing toward eachother we could return an empty list here
 
 	# If the last primer points to the end, accept it
 	if matchList[-1].prmFlag&(1<<4)==0:
-		cutList.append([matchList[-1].endAln,None,matchList[-1].prmType,0])
+		cutList.append([matchList[-1].startAln,None,matchList[-1].prmType,0])
 
 	return cutList
 
@@ -294,17 +294,11 @@ def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='Cr'):
 						'\n')#+':'+str(x[0])+'-'+str(x[1])
 
 					# Dump the actual sub sequence with primers
-					dumpFile.write(str(Seq(primerSeqs[x[2]])) +
-						readSeq[x[0]:x[1]] +
-						str(Seq(primerSeqs[x[3]]).reverse_complement()) +
-						'\n')
+					dumpFile.write(readSeq[x[0]:x[1]] + '\n')
 					dumpFile.write(readPlus+'\n')
 
 					# Add perfect phred scores for forced primers
-					dumpFile.write('~'*len(primerSeqs[x[2]]) +
-						readPhred[x[0]:x[1]] +
-						'~'*len(primerSeqs[x[3]]) +
-						'\n')
+					dumpFile.write(readPhred[x[0]:x[1]] + '\n')
 
 					cutId += 1
 
@@ -329,10 +323,10 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='Fr'):
 			matches = [[x.start(), x.end(), x.group()] for x in (re.finditer(reSeqs, readSeq))]
 			thisCut = []
 			if matches != []:
-				thisCut.append((0,matches[0][1],
+				thisCut.append((0,matches[0][0], # matches[0][1]
 					-1,restSeqs.index(matches[0][2])))
 				for i in xrange(len(matches)-1):
-					thisCut.append((matches[i][0],matches[i+1][1],
+					thisCut.append((matches[i][0],matches[i+1][0], # matches[0][1]
 						restSeqs.index(matches[i][2]),restSeqs.index(matches[i+1][2])))
 				thisCut.append((matches[-1][0],len(readSeq),
 					restSeqs.index(matches[-1][2]),-1))
@@ -413,7 +407,7 @@ def mapToRefSite(refSiteList,mappedPos):
 
 	return [left, right]
 
-def exportToPlot(restrefs,insam,uniqid=['Cr.Id'],minqual=20):
+def exportToPlot(settings,restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 	#insam = sys.argv[1]
 	samfile = pysam.AlignmentFile(insam, "rb")
 
@@ -470,7 +464,8 @@ def exportToPlot(restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 				# and have the same mother read...
 			if prevRead.reference_id == read.reference_id \
 				and prevRead.is_reverse == read.is_reverse \
-				and result[0] <= prevResult[1] and result[1] >= prevResult[0] \
+				and result[0] <= prevResult[1] \
+				and result[1] >= prevResult[0] \
 				and curID == prevID:
 					curStack.append((read,result))
 					curInfo[-1] = False
@@ -512,6 +507,7 @@ def exportToPlot(restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 	for i,val in enumerate(headers):
 		headers[i] = headerConvert[val]
 	headers.extend(['AlnChr','AlnStart','AlnEnd','AlnStrand','AlnSkipLeft','AlnSkipRight','ExtStart','ExtEnd','ExtLig'])
+	# TODO add AlnQual
 
 	pdFrame = pd.DataFrame(readInfos, index=readIDs, columns=headers)
 
@@ -535,6 +531,18 @@ def exportToPlot(restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 		for i,val in enumerate(curList):
 			for x in val[1]:
 				byReads[x[0]].append((key,i))
+		
+	# pcrDupSubSet = set()
+	# for key in restrefs:
+	# 	curList = restrefs[key]
+	# 	for restArea in curList:
+	# 		if not (key == settings['vp_chr'] and 
+	# 				restArea[0][0] < settings['win_end'] and 
+	# 				restArea[0][1] > settings['win_start']):
+	# 			if len(curList[1]) > 1:
+	# 				for read in curList[1]:
+	# 					pcrDupSubSet.add(read)
+	# print len(pcrDupSubSet)
 
 	return restrefs,byReads,pdFrame
 	#np.savez_compressed(sys.argv[3],byregion=restrefs,byread=dict(byReads))
