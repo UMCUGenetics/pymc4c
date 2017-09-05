@@ -4,6 +4,7 @@ import sys
 import log
 import numpy as np
 import mc4ctools as mc
+import pandas as pd
 
 
 def makePrimerFasta(args):
@@ -42,9 +43,42 @@ def exportToPlot(args):
 	print 'Loading restrsites, this takes a while...'
 	restrefs=np.load(args.restfile)['restrsites'].item()
 	print 'Finished loading, moving on'
-	restRefs,byReads,pdFrame = mc.exportToPlot(settings,restrefs,args.bamfile)
+	byRegion,byRead,pdFrame = mc.exportToPlot(settings,restrefs,args.bamfile)
+
+	#dupSet = mc.findDuplicates(settings,byRead,byRegion)
+	#pdFrame['Duplicate'] = np.where(pdFrame['CircleId'].isin(dupSet), True, False)
+
 	#print pdFrame
 	np.savez_compressed(args.plotfile,
+		pdframe=pdFrame,
+		pdcolumns=pdFrame.columns,
+		pdindex=pdFrame.index)
+
+	np.savez_compressed(args.plotfile+'_extra',
+		byregion=byRegion,
+		byread=byRead)
+
+
+def markDuplicates(args):
+	settings = mc.loadIni(args.inifile)
+	exFile = np.load(args.extra)
+
+	try:
+		byRead = exFile['byread'].item()
+	except KeyError:
+		byRead = exFile['byreads'].item()
+	byRegion = exFile['byregion'].item()
+
+	pdFile = np.load(args.pdframe)
+	pdFrame = pd.DataFrame(pdFile['pdframe'],columns=pdFile['pdcolumns'],index=pdFile['pdindex'])
+	dupSet = mc.findDuplicates(settings,byRead,byRegion)
+
+	#df['dup']=np.where(pd.Series(df.index).isin([1,5]),True,False)
+	#pdFrame['Duplicate'] = np.where(pdFrame['CircleId'].isin(dupSet), True, False)
+
+	pdFrame['Duplicate'] = np.where(pd.Series(pdFrame.index).isin(dupSet), True, False)
+
+	np.savez_compressed(args.outfile,
 		pdframe=pdFrame,
 		pdcolumns=pdFrame.columns,
 		pdindex=pdFrame.index)
@@ -130,6 +164,24 @@ def main():
 		type=str,
 		help='Numpy compressed file containing restriction site coordinates')
 	parser_export.set_defaults(func=exportToPlot)
+
+	#
+	parser_export = subparsers.add_parser('markdup',
+		description='Add duplicate info for exported results')
+	parser_export.add_argument('inifile',
+		type=str,
+		help=descIniFile)
+	parser_export.add_argument('pdframe',
+		type=str,
+		help='The main file previously exported')
+	parser_export.add_argument('extra',
+		type=str,
+		help='The _extra file created during previous export')
+	parser_export.add_argument('outfile',
+		type=str,
+		help='New export file')
+	parser_export.set_defaults(func=markDuplicates)
+
 
 	args = parser.parse_args(sys.argv[1:])
 	log.printArgs(args)

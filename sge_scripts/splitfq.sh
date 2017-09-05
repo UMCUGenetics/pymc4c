@@ -31,3 +31,5 @@ awk \
 		CUROUT = OUTFASTQ"_"C".block.fa"
 		ALTOUT = OUTFASTQ"_"C".block.fq" }
 	' $FILE_FASTQ
+
+# TODO: Add remove read if less than 500 bp

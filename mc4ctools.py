@@ -165,7 +165,7 @@ class SimpleRead(object):
 
 
 def groupPrimers(matchList):
-	# Split by primer type to ensure we only combine primes of the same sort
+	# Split by primer type to ensure we only combine primers of the same type
 	for side in set(x.prmType for x in matchList):
 		thisSide = [x for x in matchList if x.prmType == side]
 		if len(thisSide) > 1:
@@ -191,11 +191,14 @@ def groupPrimers(matchList):
 						matchList.remove(nextRead)
 						# Merge further in subsequent loops, not in this one
 						break
-
+						
 	return matchList
 
 
 def findCuts(matchList):
+	for x in matchList:
+		if x.readID == 13:
+			print x.tostring() 
 	# Ensure the list provided is sorted by start positions
 	matchList.sort(key=lambda x: x.startAln)
 	cutList = []
@@ -207,6 +210,9 @@ def findCuts(matchList):
 	if matchList[0].prmFlag&(1<<4)==16:
 		cutList.append([None,matchList[0].endAln,0,matchList[0].prmType])
 
+		if x.readID == 13:
+			print 'Left'
+
 	# Any two subsequent primers pointing toward eachother are accepted,
 	# but ensure they are not the same primer
 	for i in xrange(0,len(matchList)-1):
@@ -214,6 +220,8 @@ def findCuts(matchList):
 				matchList[i+1].prmFlag&(1<<4)==16 and \
 				matchList[i].prmType != matchList[i+1].prmType:
 			cutList.append([matchList[i].startAln,matchList[i+1].endAln,matchList[i].prmType,matchList[i+1].prmType])
+			if x.readID == 13:
+				print 'Middle'
 		# TODO: Check if we need to add +1 to the end position above
 		# If we want to remove reads where 2 of the same primer type are
 		# pointing toward eachother we could return an empty list here
@@ -221,6 +229,9 @@ def findCuts(matchList):
 	# If the last primer points to the end, accept it
 	if matchList[-1].prmFlag&(1<<4)==0:
 		cutList.append([matchList[-1].startAln,None,matchList[-1].prmType,0])
+
+		if x.readID == 13:
+			print 'Right'
 
 	return cutList
 
@@ -255,30 +266,35 @@ def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='Cr'):
 	readId=-1
 	readName=''
 	readSeq=''
+	cutIndex = 0
+	cut = cutList[cutIndex]
 	with open(inFile,'r') as fqFile, open(outFile,'w') as dumpFile:
 
-		# Indexing is lead by cutlist, contains less than or equal to inFile
-		for cut in cutList:
-
-			# Assuming both lists are sorted by read id (int),
-		 	# play catchup between the two lists
-			while cut[0] > readId:
+		# Assuming both cutList and samfile are sorted by read id (int),
+		# play catchup between the two lists
+		try:
+			# Indexing is lead by reads in samfile, contains more than or equal to cutList
+			while True:
 				readName=fqFile.next().rstrip()
 				readSeq=fqFile.next().rstrip()
 				readPlus=fqFile.next().rstrip()
 				readPhred=fqFile.next().rstrip()
 				readId=int(dict(item.split(":") for item in readName[1:].split(";"))['Rd.Id'])
 
-			# Both lists are now either aligned or inFile is ahead
-			if readId == cut[0]:
-				cutId = 1
+				# Make cutList catch up if lagging
+				while cut[0] < readId and cutIndex < len(cutList)-1:
+					cutIndex += 1
+					cut = cutList[cutIndex]
 
-				# No cuts can be made, take whole sequence instead
-				if cut[1] == []:
-					cut[1] = [[0,len(readSeq),0,0]]
+				cutId = 1
+				cutTmp = cut[:] # To be fair this is an ugly solution
+				# Both lists are now either aligned or inFile is ahead
+				if readId != cutTmp[0] or len(cutTmp[1]) == 0:
+					# No cuts can be made, take whole sequence instead
+					cutTmp[1] = [[0,len(readSeq),0,0]]
 
 				# Split sequence, dump information
-				for i,x in enumerate(cut[1]):
+				for i,x in enumerate(cutTmp[1]):
 					if x[0] == None:
 						x[0] = 0
 					if x[1] == None:
@@ -301,7 +317,8 @@ def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='Cr'):
 					dumpFile.write(readPhred[x[0]:x[1]] + '\n')
 
 					cutId += 1
-
+		except StopIteration:
+			pass
 
 ### splitreads implementation ###
 
@@ -407,7 +424,7 @@ def mapToRefSite(refSiteList,mappedPos):
 
 	return [left, right]
 
-def exportToPlot(settings,restrefs,insam,uniqid=['Cr.Id'],minqual=20):
+def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 	#insam = sys.argv[1]
 	samfile = pysam.AlignmentFile(insam, "rb")
 
@@ -425,6 +442,11 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 	readIDs = []
 	readInfos = []
 
+	prevCombo = []
+	curCombo = []
+
+	curID = 0
+
 	for read in samfile:
 		if not read.is_unmapped and read.mapping_quality >= minqual:
 			if read.reference_name not in restrefs:
@@ -434,7 +456,13 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 			# Treat main read + primer cleave information together as unique read id
 			curSplit = [item.split(":") for item in read.query_name.split(";")]
 			curDict = dict(curSplit)
-			curID = ';'.join([curDict[x] for x in uniqid])
+			#curID = ';'.join([curDict[x] for x in uniqid])
+			# Create a 'unique' integer for the combination of values that defines a specific circle
+			curCombo = [curDict[x] for x in uniqid]
+			if curCombo != prevCombo:
+				curID += 1
+			prevCombo = curCombo
+			#print curID
 
 			# Determine soft clipped basepairs at start and end of mapping
 			leftSkip = 0
@@ -492,6 +520,7 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 	headerConvert = {
 		'Fl.Id'  : 'FileID',
 		'Rd.Id'  : 'ReadId',
+		'Rd.Ln'  : 'ReadLen',
 		'Cr.Id'  : 'CircleId',
 		'Cr.SBp' : 'CircleStartBp',
 		'Cr.EBp' : 'CircleEndBp',
@@ -546,3 +575,116 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Cr.Id'],minqual=20):
 
 	return restrefs,byReads,pdFrame
 	#np.savez_compressed(sys.argv[3],byregion=restrefs,byread=dict(byReads))
+
+
+def findDuplicates(settings,byRead,byRegion):
+	# TODO: Make this work for multiple windows as well
+	transSize = settings['win_end'][0] - settings['win_start'][0]
+	transStart = settings['win_start'][0]-transSize
+	transEnd = settings['win_end'][0]+transSize
+	windowStart = settings['win_start'][0]
+	windowEnd = settings['win_end'][0]
+	viewStart = settings['vp_end'][0]
+	viewEnd =  settings['vp_end'][0]
+	viewChrom = settings['vp_chr'][0]
+
+	def mergeRestBins(binList):
+		tmpBinList = sorted(binList)
+		for i in range(len(tmpBinList)-1,0,-1):
+			if  tmpBinList[i][0] == tmpBinList[i-1][0] and tmpBinList[i][1] == tmpBinList[i-1][1]+1:
+				tmpBinList.pop(i)
+		return tmpBinList
+
+
+	transSet = set()
+	windowSet = set()
+	viewSet = set()
+	pcrDupSubSet = set()
+	# Identify reads with possible PCR duplicates through coverage per region
+	for key in byRegion:
+		curList = byRegion[key]
+		for i,restArea in enumerate(curList):
+			# Determine if region is in window
+			if ((key == viewChrom or key == 'chr'+viewChrom) and
+					restArea[0][0] < transEnd and
+					restArea[0][1] > transStart):
+				transSet.add((key,i))
+
+				if (restArea[0][0] < windowEnd and
+						restArea[0][1] > windowStart):
+					windowSet.add((key,i))
+
+					if (restArea[0][0] < viewEnd and
+							restArea[0][1] > viewStart):
+						viewSet.add((key,i))
+					
+			else:
+				# Only of interest for PCR duplicates if there is more than one read
+				if len(restArea[1]) > 1:
+					# Take all the reads in this region
+					for read in restArea[1]:
+						# And track the read id number using a set
+						pcrDupSubSet.add(read[0])
+
+	print 'Total reads:\t',len(byRead)
+	print 'Viewport bins:\t',len(transSet)
+	print 'Off target:\t',len(pcrDupSubSet)
+
+	notInViewSet = set()
+	for read in byRead:
+		if len(mergeRestBins(list(set(byRead[read]).intersection(set(transSet))))) < 1:
+			notInViewSet.add(read)
+
+	print 'Non infos:\t',len(notInViewSet)
+
+	pcrDupSubSet = pcrDupSubSet-notInViewSet
+
+	print 'PCR testable:\t',len(pcrDupSubSet)
+
+	pcrDupMarkSet = set()
+	infoSet = windowSet-viewSet
+
+	# Trick to break out a double for loop:
+	class Found(Exception): pass
+
+	# For every read in the predetermined set of interest
+	for read in pcrDupSubSet:
+		# Hocus Pocus, try except
+		try:
+			# Check every region it covers
+			for region in byRead[read]:
+				# Now check every read in that region
+				for altReadTuple in byRegion[region[0]][region[1]][1]:
+					altRead = altReadTuple[0]
+					# If we haven't marked that read as dup before, but it was marked as possible dup, do a comparison
+					if (altRead != read) and (altRead in pcrDupSubSet) and (altRead not in pcrDupMarkSet):
+						# Determine intersection between that read and the main read we were investigating
+						readIntsect = set(byRead[read]).intersection(set(byRead[altRead]))
+						# Remove regions that are not what we consider trans regions
+						viewIntsect = transSet.intersection(readIntsect)
+						# Reduce subsequently overlapping regions to a single region
+						interestingPart = mergeRestBins(list(readIntsect - viewIntsect))
+						
+						# Determine if overlap in reduced region set is more than a single region
+						if len(interestingPart) > 1:
+							#print interestingPart,byRead[read],byRead[altRead]
+							#print read,len(set(byRead[read]).intersection(transSet)),altRead,len(set(byRead[altRead]).intersection(transSet))
+							if len(mergeRestBins(list(set(byRead[read]).intersection(infoSet)))) >= len(mergeRestBins(list(set(byRead[altRead]).intersection(infoSet)))):
+								# altRead is the shortest read, good bye
+								pcrDupMarkSet.add(altRead)
+							else:
+								# Mark the current read
+								pcrDupMarkSet.add(read)
+								# Seeing we are marking the current read rather than the 'other' read, no point comparing other reads
+								raise Found # "Pocus"
+		# Draw rabbit from the hat
+		except Found:
+			pass
+					
+
+	print 'PCR duplicates:\t',len(pcrDupMarkSet)
+	#exit()
+
+	print 'Reads left:\t',len(byRead)-len(pcrDupMarkSet.union(notInViewSet))
+
+	return pcrDupMarkSet
