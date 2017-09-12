@@ -443,15 +443,19 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 
 	curID = 0
 
+	print restrefs.keys()
+
 	for read in samfile:
+		# Treat main read + primer cleave information together as unique read id
+		curSplit = [item.split(":") for item in read.query_name.split(";")]
+		curDict = dict(curSplit)
+
 		if not read.is_unmapped and read.mapping_quality >= minqual:
 			if read.reference_name not in restrefs:
 				continue
 			result = mapToRefSite(restrefs[read.reference_name],[read.reference_start, read.reference_start + read.infer_query_length(always=True)])
 
-			# Treat main read + primer cleave information together as unique read id
-			curSplit = [item.split(":") for item in read.query_name.split(";")]
-			curDict = dict(curSplit)
+
 			#curID = ';'.join([curDict[x] for x in uniqid])
 			# Create a 'unique' integer for the combination of values that defines a specific circle
 			curCombo = [curDict[x] for x in uniqid]
