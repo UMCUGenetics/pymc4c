@@ -196,12 +196,12 @@ def groupPrimers(matchList):
 
 
 def findCuts(matchList):
-	for x in matchList:
-		if x.readID == 13:
-			print x.tostring() 
 	# Ensure the list provided is sorted by start positions
 	matchList.sort(key=lambda x: x.startAln)
 	cutList = []
+
+	for x in matchList:
+		print x.tostring()
 
 	if matchList == []:
 		return cutList
@@ -210,18 +210,14 @@ def findCuts(matchList):
 	if matchList[0].prmFlag&(1<<4)==16:
 		cutList.append([None,matchList[0].endAln,0,matchList[0].prmType])
 
-		if x.readID == 13:
-			print 'Left'
-
-	# Any two subsequent primers pointing toward eachother are accepted,
-	# but ensure they are not the same primer
+	# Any two subsequent primers pointing toward eachother are accepted (for now)
 	for i in xrange(0,len(matchList)-1):
 		if matchList[i].prmFlag&(1<<4)==0 and \
-				matchList[i+1].prmFlag&(1<<4)==16 and \
-				matchList[i].prmType != matchList[i+1].prmType:
+				matchList[i+1].prmFlag&(1<<4)==16: # and \#matchList[i].prmType != matchList[i+1].prmType:
 			cutList.append([matchList[i].startAln,matchList[i+1].endAln,matchList[i].prmType,matchList[i+1].prmType])
-			if x.readID == 13:
-				print 'Middle'
+			# The primerType check is left for later as otherwise reads with only bad primer combinations would
+			# be assumed to have no primers at all.
+
 		# TODO: Check if we need to add +1 to the end position above
 		# If we want to remove reads where 2 of the same primer type are
 		# pointing toward eachother we could return an empty list here
@@ -229,9 +225,6 @@ def findCuts(matchList):
 	# If the last primer points to the end, accept it
 	if matchList[-1].prmFlag&(1<<4)==0:
 		cutList.append([matchList[-1].startAln,None,matchList[-1].prmType,0])
-
-		if x.readID == 13:
-			print 'Right'
 
 	return cutList
 
@@ -295,6 +288,9 @@ def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='Cr'):
 
 				# Split sequence, dump information
 				for i,x in enumerate(cutTmp[1]):
+					# Ignore reads where primers were found but did not make sense
+					if x[2] > 0 and x[2] == x[3]: 
+						continue
 					if x[0] == None:
 						x[0] = 0
 					if x[1] == None:
@@ -447,15 +443,19 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 
 	curID = 0
 
+	print restrefs.keys()
+
 	for read in samfile:
+		# Treat main read + primer cleave information together as unique read id
+		curSplit = [item.split(":") for item in read.query_name.split(";")]
+		curDict = dict(curSplit)
+
 		if not read.is_unmapped and read.mapping_quality >= minqual:
 			if read.reference_name not in restrefs:
 				continue
 			result = mapToRefSite(restrefs[read.reference_name],[read.reference_start, read.reference_start + read.infer_query_length(always=True)])
 
-			# Treat main read + primer cleave information together as unique read id
-			curSplit = [item.split(":") for item in read.query_name.split(";")]
-			curDict = dict(curSplit)
+
 			#curID = ';'.join([curDict[x] for x in uniqid])
 			# Create a 'unique' integer for the combination of values that defines a specific circle
 			curCombo = [curDict[x] for x in uniqid]
