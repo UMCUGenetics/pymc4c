@@ -140,15 +140,7 @@ def update_dataShown():
 		total=shownVal)
 
 	source.data = df2
-	#
-	# bar2.x_range.start = -0.5
-	# bar2.x_range.end = len(shownVal)-0.5
-	#
-	# bar2.y_range.start = 0
-	# bar2.y_range.end = max(shownSel)*1.25
-	#
-	# selectRange.end = len(shownVal)-1
-	# selectRange.range = (0,len(shownVal)-1)
+
 	global subSelectionBox
 	subSelectionBox = []
 	source.selected['1d']['indices']=[]

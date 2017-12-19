@@ -23,22 +23,25 @@ class DataTraveller:
 
 			sub = dict()
 			for i,reg in enumerate(self.byRegion[key]):
-				# print reg
-				sub[i] = reg
+				#print reg
+				sub[i] = (reg[0],[x[0] for x in reg[1]])
 				# print i,reg
 				# ~exit()
 			tmp[key] = sub#range(len(self.byRegion[key]))
 		self.curRegion = tmp
-
+		print 'curRegion',self.curRegion['chr8'][0]
 
 		self.curRead = self.byRead.keys()
 
 	def coordsToRegionIndex(self, chromosome, start, end):
 		regionList = self.curRegion[chromosome]
+		print 'curRegion',self.curRegion['chr8']
+		#print chromosome, start, end
+		#print regionList
 		# Use bisect implementation to quickly find a matching position
-		left = bs.bisect([x[0][1] for x in regionList],start)
-		right = bs.bisect([x[0][0] for x in regionList],end)
-		print left,right
+		left = bs.bisect([regionList[x][0][1] for x in regionList],start)
+		right = bs.bisect([regionList[x][0][0] for x in regionList],end)
+		#print left,right
 		refLen = len(regionList)-1
 
 		# Don't bother beyond the last position in the list
@@ -80,10 +83,15 @@ class DataTraveller:
 
 	def applyAnchor(self, regions):
 		self.history.append(regions)
-		allReads = self.getReadsByRegions(regions)
+		
+		#print self.curRegion['chr8']
+		print self.getReadsByRegions(regions)
+		allReads = [x[0] for x in self.getReadsByRegions(regions)]
+		
 		self.curRead = [x for x in self.curRead if x in allReads]
 		self.curRegion = self.getRegionsByReads(self.curRead)
-
+		
+		#print self.curRegion['chr8']
 
 	def getSelectedInfo(self,chromosomes=None):
 		infoList = []
@@ -105,9 +113,10 @@ class DataTraveller:
 					self.byRegion[chromosome][region][0][0],
 					self.byRegion[chromosome][region][0][1],
 					len(self.byRegion[chromosome][region][1]),
-					len([x for x in self.byRegion[chromosome][region][1] if x in self.curRead]),
+					len([x for x in self.byRegion[chromosome][region][1] if x[0] in self.curRead]),
 					)
 				)
+				
 		infoList.sort()
 
 		#return [(x[0],x[1][0],x[1][1],x[2],x[3]) for x in infoList]

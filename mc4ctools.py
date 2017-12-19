@@ -422,7 +422,7 @@ def mapToRefSite(refSiteList,mappedPos):
 	while refSiteList[right][1] <= mappedPos[1] - 10 and right < refLen:
 		right += 1
 
-	return [left, right]
+	return [left, right, refSiteList[left][0], refSiteList[right][1]]
 
 def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 	#insam = sys.argv[1]
@@ -481,7 +481,9 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 				rightSkip,
 				result[0],
 				result[1],
-				True
+				True,
+				result[2],
+				result[3]
 				]
 
 			# TODO are we missing out on a sanity check here? Say, sites 1,2,1 for example?
@@ -518,7 +520,7 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 
 	headers = [x[0] for x in curSplit]
 	headerConvert = {
-		'Fl.Id'  : 'FileID',
+		'Fl.Id'  : 'FileId',
 		'Rd.Id'  : 'ReadId',
 		'Rd.Ln'  : 'ReadLen',
 		'Cr.Id'  : 'CircleId',
@@ -535,7 +537,7 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 
 	for i,val in enumerate(headers):
 		headers[i] = headerConvert[val]
-	headers.extend(['AlnChr','AlnStart','AlnEnd','AlnStrand','AlnSkipLeft','AlnSkipRight','ExtStart','ExtEnd','ExtLig'])
+	headers.extend(['AlnChr','AlnStart','AlnEnd','AlnStrand','AlnSkipLeft','AlnSkipRight','ExtStartId','ExtEndId','ExtLig','ExtStart','ExtEnd'])
 	# TODO add AlnQual
 
 	pdFrame = pd.DataFrame(readInfos, index=readIDs, columns=headers)
