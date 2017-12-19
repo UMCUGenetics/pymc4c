@@ -78,6 +78,9 @@ Now the 3 variables used are specified, run the bash script containing the actua
 ```
 
 ### Map primers to reads (4C Data)
+Sometimes circles appear to attach to eachother, creating a longer read with multiple circles. 
+Therefore, reads should be cut at the restriction sites they were most likely cut at originally. 
+
 Map the primers (made in the preparation using makeprimerfa) to the reads.
 
 First index the reads from the samples as if they are the reference data.
@@ -119,8 +122,7 @@ python mc4c.py cleavereads \
 ```
 
 ### Split reads by restriction sites
-Sometimes circles appear to attach to eachother, creating a longer read with multiple circles. 
-Therefore, reads should be cut at the restriction sites they were most likely cut at originally. 
+This step cuts the reads into pieces that together tell what regions were close at the time the experiment was run.
 
 > Note: The data used for input here depends on whether or not reads were previously split by mapped primers.
 
