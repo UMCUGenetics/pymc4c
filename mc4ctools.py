@@ -481,9 +481,9 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 				rightSkip,
 				result[0],
 				result[1],
-				True,
 				result[2],
-				result[3]
+				result[3],
+				True
 				]
 
 			# TODO are we missing out on a sanity check here? Say, sites 1,2,1 for example?
@@ -537,7 +537,7 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 
 	for i,val in enumerate(headers):
 		headers[i] = headerConvert[val]
-	headers.extend(['AlnChr','AlnStart','AlnEnd','AlnStrand','AlnSkipLeft','AlnSkipRight','ExtStartId','ExtEndId','ExtLig','ExtStart','ExtEnd'])
+	headers.extend(['AlnChr','AlnStart','AlnEnd','AlnStrand','AlnSkipLeft','AlnSkipRight','ExtStartId','ExtEndId','ExtStart','ExtEnd','ExtLig'])
 	# TODO add AlnQual
 
 	pdFrame = pd.DataFrame(readInfos, index=readIDs, columns=headers)
