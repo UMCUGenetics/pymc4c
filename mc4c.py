@@ -37,13 +37,33 @@ def findRefRestSites(args):
 	restDict = mc.findReferenceRestSites(args.fastafile,restSeqs)
 	np.savez_compressed(args.restfile,restrsites=restDict)
 
+def getRefResPositions(args):
+	settings = mc.loadIni(args.inifile)
+	print [settings['vp_chr']],[settings['vp_start'], settings['vp_end']]
+	print 'Loading restrsites, this takes a while...'
+	restrefs=np.load(args.restfile)['restrsites'].item()
+	print 'Finished loading, moving on'
+	result = mc.mapToRefSite(restrefs[settings['vp_chr'][0]],[settings['vp_start'][0], settings['vp_end'][0]])
+
+	refPosList = []
+
+	for i in range(result[0],result[1]+1):
+		#print i,restrefs[settings['vp_chr'][0]][i]
+		refPosList.append(restrefs[settings['vp_chr'][0]][i])
+
+	pdFrame = pd.DataFrame(refPosList, index=range(result[0],result[1]+1), columns=['start','stop'])
+
+	np.savez_compressed(args.outfile,
+		pdframe=pdFrame,
+		pdcolumns=pdFrame.columns,
+		pdindex=pdFrame.index)
 
 def exportToPlot(args):
 	settings = mc.loadIni(args.inifile)
 	print 'Loading restrsites, this takes a while...'
 	restrefs=np.load(args.restfile)['restrsites'].item()
 	print 'Finished loading, moving on'
-	byRegion,byRead,pdFrame = mc.exportToPlot(settings,restrefs,args.bamfile)
+	byRegion,byRead,pdFrame = mc.exportToPlot(settings,rstrefs,args.bamfile)
 
 	#dupSet = mc.findDuplicates(settings,byRead,byRegion)
 	#pdFrame['Duplicate'] = np.where(pdFrame['CircleId'].isin(dupSet), True, False)
@@ -82,6 +102,23 @@ def markDuplicates(args):
 		pdframe=pdFrame,
 		pdcolumns=pdFrame.columns,
 		pdindex=pdFrame.index)
+
+
+def flattenFragments(args):
+	pdFile = np.load(args.pdframe)
+	pdFrame = pd.DataFrame(pdFile['pdframe'],columns=pdFile['pdcolumns'],index=pdFile['pdindex'])
+	repSet = mc.findRepeats(pdFrame)
+
+	#df['dup']=np.where(pd.Series(df.index).isin([1,5]),True,False)
+	#pdFrame['Duplicate'] = np.where(pdFrame['CircleId'].isin(dupSet), True, False)
+
+	#pdFrame['Duplicate'] = np.where(pd.Series(pdFrame.index).isin(dupSet), True, False)
+
+	#np.savez_compressed(args.outfile,
+	#	pdframe=pdFrame,
+	#	pdcolumns=pdFrame.columns,
+	#	pdindex=pdFrame.index)
+
 
 # Huge wall of argparse text starts here
 def main():
@@ -149,6 +186,20 @@ def main():
 	parser_refrest.set_defaults(func=findRefRestSites)
 
 	#
+	parser_refregion = subparsers.add_parser('refregion',
+		description='TODO')
+	parser_refregion.add_argument('inifile',
+		type=str,
+		help=descIniFile)
+	parser_refregion.add_argument('restfile',
+		type=str,
+		help='Numpy compressed file containing restriction site coordinates')
+	parser_refregion.add_argument('outfile',
+		type=str,
+		help='File to dump relevant restriction site locations into')
+	parser_refregion.set_defaults(func=getRefResPositions)
+
+	#
 	parser_export = subparsers.add_parser('export',
 		description='Combine and export results for interactive plotting')
 	parser_export.add_argument('inifile',
@@ -182,6 +233,16 @@ def main():
 		help='New export file')
 	parser_export.set_defaults(func=markDuplicates)
 
+	#
+	parser_flatten = subparsers.add_parser('flatten',
+		description='Mark within-circle-repeated-fragments in exported results')
+	parser_flatten.add_argument('pdframe',
+		type=str,
+		help='The main file previously exported')
+	parser_flatten.add_argument('outfile',
+		type=str,
+		help='New export file')
+	parser_flatten.set_defaults(func=flattenFragments)
 
 	args = parser.parse_args(sys.argv[1:])
 	log.printArgs(args)

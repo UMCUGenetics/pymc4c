@@ -690,3 +690,23 @@ def findDuplicates(settings,byRead,byRegion):
 	print 'Reads left:\t',len(byRead)-len(pcrDupMarkSet.union(notInViewSet))
 
 	return pcrDupMarkSet
+
+
+def findRepeats(pdFrame):
+	flatColumn = []
+	curData = []
+	def finishRead():
+		thisDataFrame = pd.concat(curData,axis=1)
+		
+		print 'derp'
+
+	curReadId = pdFrame.iloc[0]['ReadId']
+	for i,row in pdFrame.iloc[:10].iterrows():
+		print row['ReadId']
+		if row['ReadId'] != curReadId:
+			finishRead()
+			curData = []
+			curReadId = row['ReadId']
+		curData.append(row)
+	
+	finishRead()
