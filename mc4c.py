@@ -63,7 +63,7 @@ def exportToPlot(args):
 	print 'Loading restrsites, this takes a while...'
 	restrefs=np.load(args.restfile)['restrsites'].item()
 	print 'Finished loading, moving on'
-	byRegion,byRead,pdFrame = mc.exportToPlot(settings,rstrefs,args.bamfile)
+	byRegion,byRead,pdFrame = mc.exportToPlot(settings,restrefs,args.bamfile)
 
 	#dupSet = mc.findDuplicates(settings,byRead,byRegion)
 	#pdFrame['Duplicate'] = np.where(pdFrame['CircleId'].isin(dupSet), True, False)
