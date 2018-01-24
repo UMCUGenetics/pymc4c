@@ -107,17 +107,13 @@ def markDuplicates(args):
 def flattenFragments(args):
 	pdFile = np.load(args.pdframe)
 	pdFrame = pd.DataFrame(pdFile['pdframe'],columns=pdFile['pdcolumns'],index=pdFile['pdindex'])
-	repSet = mc.findRepeats(pdFrame)
+	mc.findRepeats(pdFrame)
 
-	#df['dup']=np.where(pd.Series(df.index).isin([1,5]),True,False)
-	#pdFrame['Duplicate'] = np.where(pdFrame['CircleId'].isin(dupSet), True, False)
-
-	#pdFrame['Duplicate'] = np.where(pd.Series(pdFrame.index).isin(dupSet), True, False)
-
-	#np.savez_compressed(args.outfile,
-	#	pdframe=pdFrame,
-	#	pdcolumns=pdFrame.columns,
-	#	pdindex=pdFrame.index)
+	print pdFrame.iloc[:10].T
+	np.savez_compressed(args.outfile,
+		pdframe=pdFrame,
+		pdcolumns=pdFrame.columns,
+		pdindex=pdFrame.index)
 
 
 # Huge wall of argparse text starts here

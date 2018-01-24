@@ -695,18 +695,46 @@ def findDuplicates(settings,byRead,byRegion):
 def findRepeats(pdFrame):
 	flatColumn = []
 	curData = []
+
+	# TODO: Incorporate ExtLig to tell apart reordered fragments from fragments that span multple restsites
 	def finishRead():
-		thisDataFrame = pd.concat(curData,axis=1)
-		
-		print 'derp'
+		# if len(curData) <= 3:
+		# 	return
+		parts = [-1 for x in range(len(curData))]
+		for i,frag1 in enumerate(curData):
+			#print '-',i,frag1['AlnChr'],frag1['ExtStart'],frag1['ExtEnd'],frag1['AlnStrand']
+			for j,frag2 in enumerate(curData[:i]):
+				#print '- -',j,frag2['AlnChr'],frag2['ExtStart'],frag2['ExtEnd'],frag2['AlnStrand']
+				if frag1['AlnChr'] == frag2['AlnChr'] and frag1['AlnStrand'] == frag2['AlnStrand']:
+					if frag1['ExtStart'] < frag2['ExtEnd'] + 10 and frag2['ExtStart'] < frag1['ExtEnd'] + 10:
+						#print 'match',i,j+i
+						parts[i] = j#+i+1
+						break
+		#print parts
+		newParts = []
+		index = 1
+		for part in parts:
+			if part == -1:
+				newParts.append(index)
+				index += 1
+			else:
+				newParts.append(newParts[part])
+		#print newParts
+				
+		# thisDataFrame = pd.concat(curData,axis=1)
+		# print pd.DataFrame(curData).T
+		# print 'derp'
+		flatColumn.extend(newParts)
 
 	curReadId = pdFrame.iloc[0]['ReadId']
-	for i,row in pdFrame.iloc[:10].iterrows():
-		print row['ReadId']
+	for i,row in pdFrame.iterrows():
+		#print row['ReadId']
 		if row['ReadId'] != curReadId:
 			finishRead()
 			curData = []
 			curReadId = row['ReadId']
 		curData.append(row)
-	
+
 	finishRead()
+	pdFrame['FlatId'] = pd.Series(flatColumn, index=pdFrame.index)
+	
