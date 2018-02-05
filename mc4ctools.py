@@ -513,8 +513,9 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 			prevID = curID
 
 	# Once more to empty the stack
-	for i in range(min([x[1][0] for x in curStack]), max([x[1][1] for x in curStack])+1):
-		restrefs[prevRead.reference_name][i].append((prevID,prevRead.is_reverse))
+	if len(curStack) > 0:
+		for i in range(min([x[1][0] for x in curStack]), max([x[1][1] for x in curStack])+1):
+			restrefs[prevRead.reference_name][i].append((prevID,prevRead.is_reverse))
 
 	print curSplit
 
