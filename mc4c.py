@@ -34,7 +34,7 @@ def splitReads(args):
 def findRefRestSites(args):
 	settings = mc.loadIni(args.inifile)
 	restSeqs = settings['re_seq']
-	restDict = mc.findReferenceRestSites(args.fastafile,restSeqs)
+	restDict = mc.findReferenceRestSites(args.fastafile,restSeqs,lineLen=args.linelen)
 	np.savez_compressed(args.restfile,restrsites=restDict)
 
 def getRefResPositions(args):
@@ -179,6 +179,10 @@ def main():
 	parser_refrest.add_argument('restfile',
 		type=str,
 		help='Numpy compressed file containing restriction site coordinates')
+	parser_refrest.add_argument('-linelen',
+		type=int,
+		default=50,
+		help='Number of basepairs per line in reference sequence')
 	parser_refrest.set_defaults(func=findRefRestSites)
 
 	#

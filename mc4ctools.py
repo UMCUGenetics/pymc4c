@@ -1,6 +1,6 @@
 # TODO: Check correctness of this implementation, might contain some basepair shifts due to 0vs1 based genome stuff
 
-import m2p
+# import m2p
 import prep
 from Bio.Seq import Seq
 import numpy as np
