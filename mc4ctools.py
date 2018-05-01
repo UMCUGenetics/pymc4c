@@ -17,7 +17,13 @@ fastaIdFormat='>Pr.Id:{};Pr.Wi:{};Pr.Wn:{}\n{}\n'
 
 
 def loadIni(iniFile):
-	# Read data from file, stuff it into a dict
+	""" Read data from file, put it into a dict
+
+	:param iniFile: takes a path to a tab separated file with one variable name and optionally
+	several values per line. Checks if the amount of variables in some lines match.
+
+	:returns: Dictionary where keys are based on the first column with values in a list.
+	"""
 	settings=dict()
 	with open(iniFile,'r') as iniFile:
 		for line in iniFile:
@@ -47,11 +53,26 @@ def loadIni(iniFile):
 ### makeprimerfa implementation ###
 
 def splitStringTo(item,maxLen=50):
+	""" Helper function to make a fasta split at 50 bp per line.
+
+	:param item: The input sequence string.
+	:param maxLen: The max amount of basepairs per line.
+
+	:returns: List of strings per required length
+	"""
 	return [str(item[ind:ind+maxLen]) for ind in range(0, len(item), maxLen/2)]
 
 
-# In case of leftover sequence the last bit is attached to the preceding chunk
 def seqToFasta(sequence,baseId):
+	""" Helper function to create fasta sequences from primer information.
+
+	:param sequence: The actual primer sequence.
+	:param baseId: Identifier for the primer, used to make the fasta identifier.
+	
+	:returns: A fasta string with a formatted sequence id.
+
+	Note: In case of leftover sequence the last bit is attached to the preceding chunk.
+	"""
 	targetLen = 50
 	split = splitStringTo(sequence,maxLen=targetLen)
 	if len(split) > 1:
@@ -67,8 +88,16 @@ def seqToFasta(sequence,baseId):
 	return outString
 
 
-# TODO: Improve error message on faulty primes sequences
 def getPrimerSeqs(dataInfo):
+	""" Function to check the primer sequences. Checks wether a sequence
+	occurs in the target region and is unique enough. 
+
+	:param dataInfo: The settings dictionary created by loading the ini.
+
+	:returns: The provided sequences, both forward and reverse versions.
+
+	:TODO: Improve error message on faulty primes sequences
+	"""
 	primerSeqs = []
 	for i, val in enumerate(dataInfo['prm_seq']):
 		leftSeq = prep.getFastaSequence(
@@ -101,6 +130,12 @@ def getPrimerSeqs(dataInfo):
 
 
 def writePrimerFasta(primerSeqs,targetFile):
+	""" Write the primer information as obtained through functions above to
+	a fasta file.
+
+	:param primerSeqs: The various primers as returned by getPrimerSeqs().
+	:param targetFile: The target output file to write to.
+	"""
 	with open(targetFile,'w') as outFasta:
 		for i,seq in enumerate(primerSeqs):
 			outFasta.write(seqToFasta(seq,str(i+1)))
@@ -165,6 +200,14 @@ class SimpleRead(object):
 
 
 def groupPrimers(matchList):
+	""" Combine possibly overlapping primers found in a read. Needed to ensure
+	a large sensible cut is made rather than recutting within a primer matched
+	region. Used in combinePrimers().
+
+	:param matchList: A list of primer matched positions.
+
+	:returns: A similar list where overlapping primers ahve been combined.
+	"""
 	# Split by primer type to ensure we only combine primers of the same type
 	for side in set(x.prmType for x in matchList):
 		thisSide = [x for x in matchList if x.prmType == side]
@@ -196,6 +239,16 @@ def groupPrimers(matchList):
 
 
 def findCuts(matchList):
+	""" Determines sensible cuts to make based on the primers mapped to a read.
+	Sanity checks include the direction of primers (need to point toward eachother 
+	or to end of read).
+	Used for combinePrimers().
+
+	:param matchList: A list of non-overlapping primer match positions within a read.
+
+	:returns: A list with information per kept cut position:
+		[start position, end position, index of start primer, index of end primer]
+	"""
 	# Ensure the list provided is sorted by start positions
 	matchList.sort(key=lambda x: x.startAln)
 	cutList = []
@@ -230,6 +283,14 @@ def findCuts(matchList):
 
 
 def combinePrimers(insam,prmLen,qualThreshold=.20):
+	""" Groups all detected primers in reads together.
+	:param insam: The sam file providing where primers mapped to reads.
+	:param prmLen: List with lengths of all primers.
+	:param qualThreshold: Remove all primer mappings with a mapping quality 
+		below this value.
+
+	:returns: A list of positions where cuts should be made according to primers.
+	"""
 	samfile = pysam.AlignmentFile(insam, "rb")
 
 	# Create a dict with lists of SimpleRead using referenceName as key
