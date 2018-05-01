@@ -145,6 +145,9 @@ def writePrimerFasta(primerSeqs,targetFile):
 
 # This class can perhaps be replaced by a panda frame later
 class SimpleRead(object):
+	""" A custom class to represent a read in an easier format for our processing of primer
+		combining and cleaving.
+	"""
 	#fastaIdFormat='PR{}_{}-{}'#s06.fastaIdFormat
 	def __init__(self, read, prmLen):
 		primerDict = dict(item.split(":") for item in read.query_name.split(";"))
