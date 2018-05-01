@@ -71,7 +71,7 @@ def seqToFasta(sequence,baseId):
 	
 	:returns: A fasta string with a formatted sequence id.
 
-	Note: In case of leftover sequence the last bit is attached to the preceding chunk.
+	:note: In case of leftover sequence the last bit is attached to the preceding chunk.
 	"""
 	targetLen = 50
 	split = splitStringTo(sequence,maxLen=targetLen)
