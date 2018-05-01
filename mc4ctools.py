@@ -90,7 +90,7 @@ def seqToFasta(sequence,baseId):
 
 def getPrimerSeqs(dataInfo):
 	""" Function to check the primer sequences. Checks wether a sequence
-	occurs in the target region and is unique enough. 
+		occurs in the target region and is unique enough. 
 
 	:param dataInfo: The settings dictionary created by loading the ini.
 
@@ -131,7 +131,7 @@ def getPrimerSeqs(dataInfo):
 
 def writePrimerFasta(primerSeqs,targetFile):
 	""" Write the primer information as obtained through functions above to
-	a fasta file.
+		a fasta file.
 
 	:param primerSeqs: The various primers as returned by getPrimerSeqs().
 	:param targetFile: The target output file to write to.
@@ -201,8 +201,8 @@ class SimpleRead(object):
 
 def groupPrimers(matchList):
 	""" Combine possibly overlapping primers found in a read. Needed to ensure
-	a large sensible cut is made rather than recutting within a primer matched
-	region. Used in combinePrimers().
+		a large sensible cut is made rather than recutting within a primer matched
+		region. Used in combinePrimers().
 
 	:param matchList: A list of primer matched positions.
 
@@ -240,9 +240,9 @@ def groupPrimers(matchList):
 
 def findCuts(matchList):
 	""" Determines sensible cuts to make based on the primers mapped to a read.
-	Sanity checks include the direction of primers (need to point toward eachother 
-	or to end of read).
-	Used for combinePrimers().
+		Sanity checks include the direction of primers (need to point toward eachother 
+		or to end of read).
+		Used for combinePrimers().
 
 	:param matchList: A list of non-overlapping primer match positions within a read.
 
@@ -284,6 +284,7 @@ def findCuts(matchList):
 
 def combinePrimers(insam,prmLen,qualThreshold=.20):
 	""" Groups all detected primers in reads together.
+
 	:param insam: The sam file providing where primers mapped to reads.
 	:param prmLen: List with lengths of all primers.
 	:param qualThreshold: Remove all primer mappings with a mapping quality 
@@ -317,6 +318,18 @@ def combinePrimers(insam,prmLen,qualThreshold=.20):
 
 
 def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='Cr'):
+	""" Apply the previously determined primer positions to cleaving the actual
+		circles from the read fragments.
+
+	:param inFile: The fastq file with reads to be cleaved by their primers.
+	:param outFile: The output fastq file where reads are cleaved by primers.
+
+	:param cutList: As returned by combinePrimers().
+	:param primerSeqs: Not used.
+	:param cutDesc: The newly added tag to the read name when applying this action.
+
+	:TODO: Remove primerSeqs.
+	"""
 	readId=-1
 	readName=''
 	readSeq=''
@@ -380,6 +393,19 @@ def applyCuts(inFile,outFile,cutList,primerSeqs,cutDesc='Cr'):
 ### splitreads implementation ###
 
 def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='Fr'):
+	""" Cut circles into smaller fragments assuming cuts were made at all 
+		restriction sites in the reference genome.
+
+	:param inFile: The fastq file with reads to be cut by their restriction sites.
+	:param outFile: The output fastq file where reads are cut by restriction sites.
+
+	:param restSeqs: List of restriction site basepair sequence(s) as provided in ini file.
+	:param cutDesc: The newly added tag to the read name when applying this action.
+
+	:returns: A list of all cuts made to all reads.
+
+	:TODO: Remove return or make it an option. Already writing to file.
+	"""
 	# compRestSeqs = [str(Seq(x).reverse_complement()) for x in restSeqs]
 	# restSeqs.extend(compRestSeqs)
 	#restSeqs.sort(key=lambda item: (-len(item), item))
@@ -435,6 +461,17 @@ def findRestrictionSeqs(inFile,outFile,restSeqs,cutDesc='Fr'):
 ### extending mapped read parts to restriction sites ###
 
 def findReferenceRestSites(refFile,restSeqs,lineLen=50):
+	""" Find restriction sites on the reference genome. Goal is to be able
+		to extend a fragment later on to match the restriction sites it was
+		mapped between, allowing us to check if there was actually a cut made
+		etc.
+
+	:param refFile: The reference genome reads were mapped to.
+	:param restSeqs: List of restriction site basepair sequence(s) as provided in ini file.
+	:param lineLen: The length of basepair sequences per line.
+
+	:TODO: Auto detect lineLen, may get into infinite loops if lentgh is wrong.
+	"""
 	reSeqs='|'.join(restSeqs)
 	restSitesDict = dict()
 
@@ -464,6 +501,14 @@ def findReferenceRestSites(refFile,restSeqs,lineLen=50):
 
 
 def mapToRefSite(refSiteList,mappedPos):
+	""" Determine most likely restriction sites on the reference genome causing
+		the cuts at the end of the fragments.
+
+	:param refSiteList: Restriction sites on a single chromosome.
+	:param mappedPos: Start and end positions of the read fragment on that chromosome.
+
+	:returns: Indexes of reference sites and their bp positions.
+	"""
 	# Use bisect implementation to quickly find a matching position
 	pos = bs.bisect_left(refSiteList,mappedPos)
 	refLen = len(refSiteList)-1
@@ -481,7 +526,22 @@ def mapToRefSite(refSiteList,mappedPos):
 
 	return [left, right, refSiteList[left][0], refSiteList[right][1]]
 
+
 def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
+	""" Exports the processed data to a pandas dataframe object, as well as a handy
+		format to filter circles with overlapping locations.
+
+	:param settings: The dict created by loading the ini file.
+	:param restrefs: The restriction site dictionary as created in getRefResPositions().
+	:param insam: The final mapped data by BWA.
+	:param uniqid: A new unique ID per circle+read is created, one may combine more columns.
+	:param minqual: Any read wit a mapping quality less than this is rejected.
+
+	:returns: 
+		restrefs: A dictionary telling per restiction site region what reads mapped there,
+		byReads: A dictionary telling per read id what restriction site regions were covered,
+		pdFrame: Pandas dataframe with all mapped read information.
+	"""
 	#insam = sys.argv[1]
 	samfile = pysam.AlignmentFile(insam, "rb")
 
@@ -642,7 +702,20 @@ def exportToPlot(settings,restrefs,insam,uniqid=['Rd.Id','Cr.Id'],minqual=20):
 
 
 def findDuplicates(settings,byRead,byRegion):
-	# TODO: Make this work for multiple windows as well
+	""" Annotate circles with information on whether they are likely duplicates.
+		Duplicates are determined by overlapping fragments in regions other than
+		the viewport.
+
+	:param settings: The dict created by loading the ini file.
+	:param restrefs: A dictionary telling per restiction site region what reads mapped there.
+		Alternate output from exportToPlot().
+	:param byReads: A dictionary telling per read id what restriction site regions were covered.
+		Alternate output from exportToPlot().
+
+	:returns: A list of read ids that were found to be likely PCR duplicates.
+
+	:TODO: Make this work for multiple windows as well
+	"""
 	transSize = settings['win_end'][0] - settings['win_start'][0]
 	transStart = settings['win_start'][0]-transSize
 	transEnd = settings['win_end'][0]+transSize
@@ -755,6 +828,12 @@ def findDuplicates(settings,byRead,byRegion):
 
 
 def findRepeats(pdFrame):
+	""" Annotate wether parts of a circle are overlapping with other parts in the same circle.
+
+	:param pdFrame: Pandas dataframe with all mapped read information.
+
+	:TODO: Return information rather than applying it here directly
+	"""
 	flatColumn = []
 	curData = []
 
